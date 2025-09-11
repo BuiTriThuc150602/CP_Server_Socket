@@ -1,0 +1,119 @@
+[
+  {
+    "eventType": "ConnectionStatus",
+    "data": {
+      "connectStatus": "connected",
+      "deviceInfo": {
+        "baudRate": "",
+        "comName": "",
+        "deviceId": "673",
+        "deviceIp": "192.168.1.201",
+        "deviceName": "C3-200",
+        "devicePort": "4370",
+        "manufacturer": "Zkteco",
+        "modelName": "C3-200",
+        "protocolType": "TCP"
+      },
+      "id": "673"
+    }
+  },
+  {
+    "eventType": "iOStatus",
+    "id": "123",
+    "deviceInfo": {
+      "deviceId": "123",
+      "deviceIp": "192.168.1.120",
+      "deviceName": "C#-400",
+      "devicePort": "4321",
+      "manufacturer": "Tecpro",
+      "modelName": "C3",
+      "protocolType": "TCP",
+      "baudRate": "",
+      "comName": ""
+    },
+    "inputStatus": [
+      {
+        "inputIndex": 1,
+        "inputName": "Button 1",
+        "value": 1
+      },
+      {
+        "inputIndex": 2,
+        "inputName": "Button 2",
+        "value": 0
+      },
+      {
+        "inputIndex": 3,
+        "inputName": "Button 3",
+        "value": 0
+      },
+      {
+        "inputIndex": 4,
+        "inputName": "Button 4",
+        "value": 0
+      },
+      {
+        "inputIndex": 5,
+        "inputName": "Aux 1",
+        "value": 0
+      },
+      {
+        "inputIndex": 6,
+        "inputName": "Aux 2",
+        "value": 0
+      },
+      {
+        "inputIndex": 7,
+        "inputName": "Aux 3",
+        "value": 0
+      },
+      {
+        "inputIndex": 8,
+        "inputName": "Aux 4",
+        "value": 0
+      }
+    ],
+    "relayStatus": [
+      {
+        "relayIndex": 1,
+        "relayName": "Lock 1",
+        "value": 0
+      },
+      {
+        "relayIndex": 2,
+        "relayName": "Lock 2",
+        "value": 0
+      },
+      {
+        "relayIndex": 3,
+        "relayName": "Lock 3",
+        "value": 0
+      },
+      {
+        "relayIndex": 4,
+        "relayName": "Lock 4",
+        "value": 0
+      },
+      {
+        "relayIndex": 5,
+        "relayName": "AuxOut 1",
+        "value": 0
+      },
+      {
+        "relayIndex": 6,
+        "relayName": "AuxOut 2",
+        "value": 0
+      },
+      {
+        "relayIndex": 7,
+        "relayName": "AuxOut 3",
+        "value": 0
+      },
+      {
+        "relayIndex": 8,
+        "relayName": "AuxOut 4",
+        "value": 0
+      }
+    ]
+  }
+]
