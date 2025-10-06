@@ -4,10 +4,12 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:socket_server/models/device_info.dart';
+import 'package:socket_server/models/socket_server_info.dart';
 
 class DeviceConfigPage extends StatefulWidget {
   final DeviceInfo? deviceInfo;
-  DeviceConfigPage({this.deviceInfo});
+  final SocketServerInfo? socketServerInfo;
+  DeviceConfigPage({this.deviceInfo, this.socketServerInfo});
 
   @override
   _DeviceConfigPageState createState() => _DeviceConfigPageState();
@@ -23,6 +25,8 @@ class _DeviceConfigPageState extends State<DeviceConfigPage> {
   late TextEditingController modelController;
   late TextEditingController baudRateController;
   late TextEditingController comNameController;
+  late TextEditingController serverIpController;
+  late TextEditingController serverPortController;
 
   @override
   void initState() {
@@ -36,6 +40,10 @@ class _DeviceConfigPageState extends State<DeviceConfigPage> {
     modelController = TextEditingController(text: d.modelName);
     baudRateController = TextEditingController(text: d.baudRate);
     comNameController = TextEditingController(text: d.comName);
+
+    final s = widget.socketServerInfo ?? SocketServerInfo();
+    serverIpController = TextEditingController(text: s.serverIp);
+    serverPortController = TextEditingController(text: s.serverPort);
   }
 
   @override
@@ -57,6 +65,11 @@ class _DeviceConfigPageState extends State<DeviceConfigPage> {
               _buildField("BaudRate", baudRateController),
               _buildField("COM Name", comNameController),
               SizedBox(height: 20),
+              Text("Cấu hình Socket Server", style: Theme.of(context).textTheme.titleLarge),
+              SizedBox(height: 10),
+              _buildField("Server IP", serverIpController, isRequired: true),
+              _buildField("Server Port", serverPortController, isRequired: true),
+              SizedBox(height: 20),
               ElevatedButton(
                 onPressed: () async {
                   if (_formKey.currentState!.validate()) {
@@ -71,7 +84,14 @@ class _DeviceConfigPageState extends State<DeviceConfigPage> {
                       comName: comNameController.text
                     );
                     await _saveDevice(device);
-                    Navigator.pop(context, device);
+
+                    final socketServer = SocketServerInfo(
+                      serverIp: serverIpController.text,
+                      serverPort: serverPortController.text,
+                    );
+                    await _saveSocketServerInfo(socketServer);
+
+                    Navigator.pop(context, device); // Only returning device for now, will need to adjust if both are returned
                   }
                 },
                 child: Text("Lưu"),
@@ -85,7 +105,7 @@ class _DeviceConfigPageState extends State<DeviceConfigPage> {
 
   Widget _buildField(String label, TextEditingController controller, {bool isRequired = false}) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 12),
       child: TextFormField(
         controller: controller,
         decoration: InputDecoration(
@@ -101,5 +121,10 @@ class _DeviceConfigPageState extends State<DeviceConfigPage> {
     final dir = await getApplicationDocumentsDirectory();
     final file = File("${dir.path}/device.json");
     await file.writeAsString(jsonEncode(device.toJson()));
+  }
+  Future<void> _saveSocketServerInfo(SocketServerInfo socketServer) async {
+    final dir = await getApplicationDocumentsDirectory();
+    final file = File("${dir.path}/socket_server.json");
+    await file.writeAsString(jsonEncode(socketServer.toJson()));
   }
 }
