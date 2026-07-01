@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:socket_server/core/models/socket_console_entry.dart';
@@ -30,6 +31,10 @@ class _ProtocolBridgeScreenState extends State<ProtocolBridgeScreen> {
   BridgeTransform _transform = BridgeTransform.none;
   TcpServerState _sourceState = TcpServerState.stopped;
   WebSocketClientState _targetState = WebSocketClientState.disconnected;
+  int _inputMessages = 0;
+  int _outputMessages = 0;
+  int _routeErrors = 0;
+  DateTime? _lastMessageAt;
 
   @override
   void initState() {
@@ -127,6 +132,10 @@ class _ProtocolBridgeScreenState extends State<ProtocolBridgeScreen> {
           const SizedBox(width: 12),
           Chip(label: Text('Source ${_sourceState.name}'), visualDensity: VisualDensity.compact),
           if (_target == BridgeTarget.websocket) ...[const SizedBox(width: 8), Chip(label: Text('Target ${_targetState.name}'), visualDensity: VisualDensity.compact)],
+          const SizedBox(width: 8),
+          Chip(label: Text(running ? 'Route active' : 'Route inactive'), visualDensity: VisualDensity.compact),
+          const SizedBox(width: 8),
+          Chip(label: Text('In $_inputMessages / Out $_outputMessages / Err $_routeErrors'), visualDensity: VisualDensity.compact),
         ],
       ),
     );
@@ -150,6 +159,8 @@ class _ProtocolBridgeScreenState extends State<ProtocolBridgeScreen> {
             ),
             const SizedBox(height: 20),
             Text(running ? 'Listening on ${_host.text}:${_port.text}' : 'Route source is stopped.'),
+            const SizedBox(height: 8),
+            Text('MVP source: TCP Server only. Avoid binding this route back to itself.'),
           ],
         ),
       ),
@@ -167,6 +178,8 @@ class _ProtocolBridgeScreenState extends State<ProtocolBridgeScreen> {
             Row(children: [const Icon(Icons.output, size: 20), const SizedBox(width: 8), Text('Target', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)), const Spacer(), Text(_target == BridgeTarget.consoleOnly ? 'Console' : 'WebSocket')]),
             const SizedBox(height: 16),
             Text('Transform: ${_transform.name}'),
+            const SizedBox(height: 8),
+            Text('Last message: ${_lastMessageAt?.toLocal().toString() ?? '-'}'),
             if (_target == BridgeTarget.websocket) ...[
               const SizedBox(height: 20),
               Text(_wsUrl.text),
@@ -205,15 +218,27 @@ class _ProtocolBridgeScreenState extends State<ProtocolBridgeScreen> {
   }
 
   void _handleSourceMessage(TcpSocketMessage message) {
-    final transformed = _applyTransform(message.text);
-    _addConsole(SocketConsoleEntry(timestamp: DateTime.now(), kind: SocketConsoleKind.incoming, text: message.text, source: 'tcp source'));
-    if (_target == BridgeTarget.websocket && _targetState == WebSocketClientState.connected) {
-      try {
-        _webSocketTarget.send(transformed);
-        _addConsole(SocketConsoleEntry(timestamp: DateTime.now(), kind: SocketConsoleKind.outgoing, text: transformed, source: 'ws target'));
-      } catch (error) {
-        _addError(error);
+    try {
+      final transformed = _applyTransform(message.text);
+      setState(() {
+        _inputMessages++;
+        _lastMessageAt = DateTime.now();
+      });
+      _addConsole(SocketConsoleEntry(timestamp: DateTime.now(), kind: SocketConsoleKind.incoming, text: 'Raw incoming\n${message.text}', source: 'tcp source'));
+      if (_target == BridgeTarget.consoleOnly) {
+        _outputMessages++;
+        _addConsole(SocketConsoleEntry(timestamp: DateTime.now(), kind: SocketConsoleKind.outgoing, text: 'Transformed output\n$transformed', source: 'console'));
+        return;
       }
+      if (_target == BridgeTarget.websocket && _targetState == WebSocketClientState.connected) {
+        _webSocketTarget.send(transformed);
+        _outputMessages++;
+        _addConsole(SocketConsoleEntry(timestamp: DateTime.now(), kind: SocketConsoleKind.outgoing, text: transformed, source: 'ws target'));
+      } else {
+        _addInfo('WebSocket target is not connected. Message was not forwarded.');
+      }
+    } catch (error) {
+      _addError(error);
     }
   }
 
@@ -221,8 +246,8 @@ class _ProtocolBridgeScreenState extends State<ProtocolBridgeScreen> {
     return switch (_transform) {
       BridgeTransform.none => text,
       BridgeTransform.appendNewline => text.endsWith('\n') ? text : '$text\n',
-      BridgeTransform.textToHex => PayloadCodec.bytesToHex(text.codeUnits),
-      BridgeTransform.hexToText => String.fromCharCodes(PayloadCodec.hexToBytes(text)),
+      BridgeTransform.textToHex => PayloadCodec.bytesToHex(utf8.encode(text)),
+      BridgeTransform.hexToText => utf8.decode(PayloadCodec.hexToBytes(text), allowMalformed: true),
     };
   }
 
@@ -231,6 +256,7 @@ class _ProtocolBridgeScreenState extends State<ProtocolBridgeScreen> {
   }
 
   void _addError(Object error) {
+    _routeErrors++;
     _addConsole(SocketConsoleEntry(timestamp: DateTime.now(), kind: SocketConsoleKind.error, text: error.toString()));
   }
 

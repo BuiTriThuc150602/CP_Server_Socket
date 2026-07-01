@@ -23,7 +23,7 @@ class CarParkingSignalCard extends StatelessWidget {
     final secondary = 'Input ${row.inputIndex}';
     final scheme = Theme.of(context).colorScheme;
     final accent = isCard ? Colors.indigo : Colors.teal;
-    final surface = current ? scheme.primaryContainer.withValues(alpha: 0.72) : null;
+    final surface = current ? scheme.primaryContainer.withValues(alpha: 0.72) : (!row.enabled ? scheme.surfaceContainerHighest.withValues(alpha: 0.48) : null);
 
     return Card(
       clipBehavior: Clip.antiAlias,
@@ -246,7 +246,7 @@ class _ActionRail extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           IconButton(tooltip: enabled ? 'Disable row' : 'Enable row', visualDensity: VisualDensity.compact, constraints: const BoxConstraints.tightFor(width: 36, height: 28), onPressed: onToggleEnabled, icon: Icon(enabled ? Icons.visibility : Icons.visibility_off, size: 18)),
-          IconButton.filledTonal(tooltip: 'Send', visualDensity: VisualDensity.compact, constraints: const BoxConstraints.tightFor(width: 36, height: 30), onPressed: autoRunning ? null : onSend, icon: const Icon(Icons.send, size: 18)),
+          IconButton.filledTonal(tooltip: 'Send manually (disabled rows are skipped only by Auto Test)', visualDensity: VisualDensity.compact, constraints: const BoxConstraints.tightFor(width: 36, height: 30), onPressed: autoRunning ? null : onSend, icon: const Icon(Icons.send, size: 18)),
           SizedBox(
             width: 36,
             height: 28,

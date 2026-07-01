@@ -96,8 +96,27 @@ class _PayloadStudioScreenState extends State<PayloadStudioScreen> {
                   ],
             ),
 
+            PopupMenuButton<String>(
+              onSelected: _handleUtility,
+              child: Chip(avatar: const Icon(Icons.functions, size: 18), label: const Text('Utilities')),
+              itemBuilder:
+                  (context) => const [
+                    PopupMenuItem(value: 'xor', child: Text('XOR checksum from HEX')),
+                    PopupMenuItem(value: 'lrc', child: Text('LRC checksum from HEX')),
+                    PopupMenuItem(value: 'byte_length', child: Text('HEX byte length')),
+                    PopupMenuItem(value: 'utf8_length', child: Text('UTF-8 byte length')),
+                    PopupMenuDivider(),
+                    PopupMenuItem(value: 'unix_seconds', child: Text('Unix seconds')),
+                    PopupMenuItem(value: 'unix_millis', child: Text('Unix milliseconds')),
+                    PopupMenuItem(value: 'iso_local', child: Text('ISO local time')),
+                    PopupMenuItem(value: 'formatted_local', child: Text('Formatted local time')),
+                  ],
+            ),
+
             const SizedBox(width: 8),
+            IconButton.outlined(tooltip: 'Copy input', onPressed: () => Clipboard.setData(ClipboardData(text: _input.text)), icon: const Icon(Icons.input)),
             IconButton.outlined(tooltip: 'Copy output', onPressed: () => Clipboard.setData(ClipboardData(text: _output.text)), icon: const Icon(Icons.copy)),
+            IconButton.outlined(tooltip: 'Swap input/output', onPressed: _swapInputOutput, icon: const Icon(Icons.swap_horiz)),
             IconButton.outlined(
               tooltip: 'Use output as input',
               onPressed: () {
@@ -109,6 +128,7 @@ class _PayloadStudioScreenState extends State<PayloadStudioScreen> {
               },
               icon: const Icon(Icons.arrow_back),
             ),
+            IconButton.outlined(tooltip: 'Clear input/output', onPressed: _clearEditors, icon: const Icon(Icons.clear_all)),
           ],
         );
       },
@@ -200,6 +220,30 @@ class _PayloadStudioScreenState extends State<PayloadStudioScreen> {
                     Navigator.pop(context);
                   },
                 ),
+                ListTile(
+                  leading: const Icon(Icons.dns),
+                  title: const Text('TCP JSON line'),
+                  onTap: () {
+                    _input.text = '{"event":"ping","timestamp":${DateTime.now().millisecondsSinceEpoch}}\n';
+                    Navigator.pop(context);
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.link),
+                  title: const Text('WebSocket JSON message'),
+                  onTap: () {
+                    _input.text = '{"type":"ping","payload":"hello"}';
+                    Navigator.pop(context);
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.usb),
+                  title: const Text('Serial HEX example'),
+                  onTap: () {
+                    _input.text = '02 30 31 03';
+                    Navigator.pop(context);
+                  },
+                ),
               ],
             ),
           ),
@@ -216,6 +260,38 @@ class _PayloadStudioScreenState extends State<PayloadStudioScreen> {
       'bin_hex': () => _convertNumbers(_NumericBase.binary, _NumericBase.hex),
     };
     map[value]?.call();
+  }
+
+  void _handleUtility(String value) {
+    final now = DateTime.now();
+    switch (value) {
+      case 'xor':
+        _guard(() {
+          final checksum = PayloadCodec.xorChecksum(PayloadCodec.hexToBytes(_input.text));
+          _output.text = checksum.toRadixString(16).padLeft(2, '0').toUpperCase();
+        });
+      case 'lrc':
+        _guard(() {
+          final checksum = PayloadCodec.lrcChecksum(PayloadCodec.hexToBytes(_input.text));
+          _output.text = checksum.toRadixString(16).padLeft(2, '0').toUpperCase();
+        });
+      case 'byte_length':
+        _guard(() => _output.text = PayloadCodec.hexToBytes(_input.text).length.toString());
+      case 'utf8_length':
+        _guard(() => _output.text = utf8.encode(_input.text).length.toString());
+      case 'unix_seconds':
+        _output.text = (now.millisecondsSinceEpoch ~/ 1000).toString();
+        setState(() => _status = 'Timestamp generated.');
+      case 'unix_millis':
+        _output.text = now.millisecondsSinceEpoch.toString();
+        setState(() => _status = 'Timestamp generated.');
+      case 'iso_local':
+        _output.text = now.toIso8601String();
+        setState(() => _status = 'Timestamp generated.');
+      case 'formatted_local':
+        _output.text = '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')} ${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}:${now.second.toString().padLeft(2, '0')}';
+        setState(() => _status = 'Timestamp generated.');
+    }
   }
 
   // --- Logic Methods ---
@@ -244,6 +320,23 @@ class _PayloadStudioScreenState extends State<PayloadStudioScreen> {
     } catch (error) {
       setState(() => _status = error.toString());
     }
+  }
+
+  void _swapInputOutput() {
+    setState(() {
+      final input = _input.text;
+      _input.text = _output.text;
+      _output.text = input;
+      _status = 'Input/output swapped.';
+    });
+  }
+
+  void _clearEditors() {
+    setState(() {
+      _input.clear();
+      _output.clear();
+      _status = 'Cleared.';
+    });
   }
 
   // ... (Keep existing helper methods: _normalizeNumericInput, _connectStatusSnippet, etc.)

@@ -4,10 +4,7 @@ import 'package:socket_server/core/ui/socket_console_panel.dart';
 import 'package:socket_server/modules/carparking/services/carparking_controller.dart';
 
 class CarParkingConsolePanel extends StatelessWidget {
-  const CarParkingConsolePanel({
-    super.key,
-    required this.controller,
-  });
+  const CarParkingConsolePanel({super.key, required this.controller});
 
   final CarParkingController controller;
 

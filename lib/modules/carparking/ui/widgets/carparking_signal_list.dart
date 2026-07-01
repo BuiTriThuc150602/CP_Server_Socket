@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:socket_server/modules/carparking/models/carparking_models.dart';
 import 'package:socket_server/modules/carparking/services/carparking_controller.dart';
 import 'package:socket_server/modules/carparking/ui/widgets/carparking_signal_card.dart';
@@ -61,6 +62,7 @@ class _CarParkingSignalListState extends State<CarParkingSignalList> {
   @override
   Widget build(BuildContext context) {
     final rows = _filteredRows;
+    final selectedRows = rows.where((row) => widget.selectedRows.contains(row.id)).toList();
     return Column(
       children: [
         Padding(
@@ -71,6 +73,14 @@ class _CarParkingSignalListState extends State<CarParkingSignalList> {
               Tooltip(message: _allSelected ? 'Deselect all' : 'Select all', child: Checkbox(tristate: true, value: _allSelected ? true : (_someSelected ? null : false), onChanged: (_) => _toggleSelectAll())),
               // Search field – takes remaining space
               Expanded(child: TextField(controller: _search, decoration: const InputDecoration(prefixIcon: Icon(Icons.search, size: 18), hintText: 'Search rows…', isDense: true, contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8)), onChanged: (_) => setState(() {}))),
+              const SizedBox(width: 8),
+              if (widget.selectedRows.isNotEmpty) ...[
+                Chip(label: Text('${widget.selectedRows.length} selected'), visualDensity: VisualDensity.compact),
+                IconButton(tooltip: 'Clear selection', onPressed: _clearSelection, icon: const Icon(Icons.close, size: 18)),
+                IconButton(tooltip: 'Send selected enabled rows once', onPressed: selectedRows.isEmpty ? null : () => _sendSelectedOnce(selectedRows), icon: const Icon(Icons.send, size: 18)),
+                IconButton(tooltip: 'Run selected in Auto Test', onPressed: selectedRows.isEmpty || widget.controller.autoTestRunning ? null : () => widget.controller.startScenario(selectedRowIds: selectedRows.map((row) => row.id).toList()), icon: const Icon(Icons.playlist_play, size: 20)),
+              ],
+              _rowsMenu(selectedRows),
               const SizedBox(width: 8),
               // Filter & View popup
               PopupMenuButton<String>(
@@ -183,6 +193,50 @@ class _CarParkingSignalListState extends State<CarParkingSignalList> {
     );
   }
 
+  Widget _rowsMenu(List<CarParkingSignalRow> selectedRows) {
+    final hasSelection = widget.selectedRows.isNotEmpty;
+    return PopupMenuButton<String>(
+      tooltip: 'Rows',
+      child: const Chip(avatar: Icon(Icons.table_rows, size: 16), label: Text('Rows'), visualDensity: VisualDensity.compact),
+      onSelected: (value) async {
+        switch (value) {
+          case 'import':
+            await _showImportDialog();
+          case 'export_all':
+            await Clipboard.setData(ClipboardData(text: widget.controller.exportRowsJson()));
+          case 'export_selected':
+            await Clipboard.setData(ClipboardData(text: widget.controller.exportSelectedRowsJson(widget.selectedRows)));
+          case 'duplicate_selected':
+            widget.controller.duplicateRows(widget.selectedRows);
+          case 'delete_selected':
+            await _deleteSelected();
+          case 'enable_selected':
+            widget.controller.setRowsEnabled(widget.selectedRows, true);
+          case 'disable_selected':
+            widget.controller.setRowsEnabled(widget.selectedRows, false);
+          case 'send_selected':
+            await _sendSelectedOnce(selectedRows);
+          case 'clear_selection':
+            _clearSelection();
+        }
+      },
+      itemBuilder:
+          (context) => [
+            const PopupMenuItem(value: 'import', child: Text('Import rows JSON')),
+            const PopupMenuItem(value: 'export_all', child: Text('Export all rows JSON')),
+            PopupMenuItem(enabled: hasSelection, value: 'export_selected', child: const Text('Export selected rows JSON')),
+            const PopupMenuDivider(),
+            PopupMenuItem(enabled: hasSelection && !widget.controller.autoTestRunning, value: 'send_selected', child: const Text('Send selected once')),
+            PopupMenuItem(enabled: hasSelection && !widget.controller.autoTestRunning, value: 'duplicate_selected', child: const Text('Duplicate selected rows')),
+            PopupMenuItem(enabled: hasSelection, value: 'enable_selected', child: const Text('Enable selected rows')),
+            PopupMenuItem(enabled: hasSelection, value: 'disable_selected', child: const Text('Disable selected rows')),
+            PopupMenuItem(enabled: hasSelection && !widget.controller.autoTestRunning, value: 'delete_selected', child: const Text('Delete selected rows')),
+            const PopupMenuDivider(),
+            PopupMenuItem(enabled: hasSelection, value: 'clear_selection', child: const Text('Clear selection')),
+          ],
+    );
+  }
+
   bool _matches(CarParkingSignalRow row) {
     if (_type != null && row.type != _type) return false;
     if (_enabledOnly && !row.enabled) return false;
@@ -191,5 +245,82 @@ class _CarParkingSignalListState extends State<CarParkingSignalList> {
     if (query.isEmpty) return true;
     final device = widget.controller.devices.where((item) => item.id == row.deviceProfileId).map((item) => item.label).join(' ');
     return [row.label, row.cardId, row.inputName, row.note, device].join(' ').toLowerCase().contains(query);
+  }
+
+  void _clearSelection() {
+    setState(widget.selectedRows.clear);
+    widget.onSelectionChanged();
+  }
+
+  Future<void> _sendSelectedOnce(List<CarParkingSignalRow> selectedRows) async {
+    final enabledRows = selectedRows.where((row) => row.enabled).toList();
+    if (enabledRows.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No enabled selected rows to send.')));
+      return;
+    }
+    for (final row in enabledRows) {
+      await widget.controller.sendRow(row);
+    }
+  }
+
+  Future<void> _deleteSelected() async {
+    final count = widget.selectedRows.length;
+    if (count == 0) {
+      return;
+    }
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Delete selected rows?'),
+            content: Text('Delete $count selected row${count == 1 ? '' : 's'}?'),
+            actions: [TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')), FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Delete'))],
+          ),
+    );
+    if (confirmed == true) {
+      widget.controller.deleteRows(widget.selectedRows);
+      _clearSelection();
+    }
+  }
+
+  Future<void> _showImportDialog() async {
+    final controller = TextEditingController();
+    String? errorText;
+    final imported = await showDialog<bool>(
+      context: context,
+      builder:
+          (context) => StatefulBuilder(
+            builder:
+                (context, setDialogState) => AlertDialog(
+                  title: const Text('Import rows JSON'),
+                  content: SizedBox(
+                    width: 640,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [TextField(controller: controller, minLines: 8, maxLines: 14, style: const TextStyle(fontFamily: 'monospace'), decoration: InputDecoration(hintText: '[{ "label": "Card 1", ... }]', errorText: errorText, border: const OutlineInputBorder()))],
+                    ),
+                  ),
+                  actions: [
+                    TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+                    FilledButton(
+                      onPressed: () {
+                        try {
+                          widget.controller.importRowsJson(controller.text);
+                          Navigator.pop(context, true);
+                        } catch (error) {
+                          setDialogState(() => errorText = error.toString());
+                        }
+                      },
+                      child: const Text('Import'),
+                    ),
+                  ],
+                ),
+          ),
+    );
+    controller.dispose();
+    if (imported == true && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Rows imported.')));
+    }
   }
 }

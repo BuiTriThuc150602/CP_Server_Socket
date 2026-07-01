@@ -247,15 +247,62 @@ class CarParkingController extends ChangeNotifier {
     return const JsonEncoder.withIndent('  ').convert(rows.map((row) => row.toJson()).toList());
   }
 
+  String exportSelectedRowsJson(Set<String> rowIds) {
+    return const JsonEncoder.withIndent('  ').convert(rows.where((row) => rowIds.contains(row.id)).map((row) => row.toJson()).toList());
+  }
+
   void importRowsJson(String text) {
     final decoded = jsonDecode(text);
     if (decoded is! List) {
       throw const FormatException('Expected a JSON array of rows.');
     }
-    final imported = decoded.whereType<Map>().map((item) => CarParkingSignalRow.fromJson(Map<String, dynamic>.from(item))).map((row) => row.deviceProfileId.isEmpty ? row.copyWith(deviceProfileId: _workspace.defaultDeviceProfileId) : row).toList();
-    _workspace = _workspace.copyWith(rows: normalizeCarParkingSignalRowIds(imported));
+    final imported =
+        decoded.whereType<Map>().map((item) => CarParkingSignalRow.fromJson(Map<String, dynamic>.from(item))).map((row) => row.deviceProfileId.isEmpty ? row.copyWith(deviceProfileId: _workspace.defaultDeviceProfileId) : row).map((row) => row.copyWith(id: newCarParkingId('row'))).toList();
+    _workspace = _workspace.copyWith(rows: normalizeCarParkingSignalRowIds([...rows, ...imported]));
     _scheduleSave();
     notifyListeners();
+  }
+
+  void duplicateRows(Iterable<String> rowIds) {
+    final selected = rows.where((row) => rowIds.contains(row.id)).toList();
+    if (selected.isEmpty) {
+      return;
+    }
+    _workspace = _workspace.copyWith(rows: [...rows, for (final row in selected) row.copyWith(id: newCarParkingId('row'), label: '${row.label} Copy')]);
+    _scheduleSave();
+    notifyListeners();
+  }
+
+  void deleteRows(Iterable<String> rowIds) {
+    final ids = rowIds.toSet();
+    if (ids.isEmpty) {
+      return;
+    }
+    _workspace = _workspace.copyWith(rows: rows.where((row) => !ids.contains(row.id)).toList());
+    _scheduleSave();
+    notifyListeners();
+  }
+
+  void setRowsEnabled(Iterable<String> rowIds, bool enabled) {
+    final ids = rowIds.toSet();
+    if (ids.isEmpty) {
+      return;
+    }
+    _workspace = _workspace.copyWith(
+      rows: [
+        for (final row in rows)
+          if (ids.contains(row.id)) row.copyWith(enabled: enabled) else row,
+      ],
+    );
+    _scheduleSave();
+    notifyListeners();
+  }
+
+  Future<void> sendRowsOnce(Iterable<String> rowIds) async {
+    final ids = rowIds.toSet();
+    for (final row in rows.where((row) => ids.contains(row.id) && row.enabled)) {
+      await sendRow(row);
+    }
   }
 
   Future<void> sendRow(CarParkingSignalRow row) async {
@@ -267,7 +314,12 @@ class CarParkingController extends ChangeNotifier {
     }
 
     final payload = row.type == CarParkingSignalType.card ? _payloadFactory.cardLog(device: device, row: row) : _payloadFactory.ioStatus(device: device, row: row);
+    if (_clients.isEmpty) {
+      _addConsole(ConsoleEntry(kind: ConsoleEntryKind.info, text: 'No TCP clients connected. Payload generated but not delivered.', timestamp: DateTime.now()));
+    }
     await _engine.sendToAll(_payloadFactory.encodeLine(payload), appendNewline: true);
+    _warning = null;
+    notifyListeners();
   }
 
   String previewPayloadForRow(CarParkingSignalRow row) {

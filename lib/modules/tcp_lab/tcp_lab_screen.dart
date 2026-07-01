@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:socket_server/core/models/socket_console_entry.dart';
 import 'package:socket_server/core/socket/tcp_client_engine.dart';
 import 'package:socket_server/core/socket/tcp_server_engine.dart';
@@ -26,6 +27,7 @@ class _TcpLabScreenState extends State<TcpLabScreen> {
   TcpServerState _serverState = TcpServerState.stopped;
   TcpClientConnectionState _clientState = TcpClientConnectionState.disconnected;
   List<TcpClientSession> _clients = const [];
+  final Set<String> _selectedClientIds = {};
   int _tab = 0;
 
   @override
@@ -33,7 +35,13 @@ class _TcpLabScreenState extends State<TcpLabScreen> {
     super.initState();
     _subscriptions.addAll([
       _server.stateStream.listen((state) => setState(() => _serverState = state)),
-      _server.clientsStream.listen((clients) => setState(() => _clients = clients)),
+      _server.clientsStream.listen(
+        (clients) => setState(() {
+          _clients = clients;
+          final liveIds = clients.map((client) => client.id).toSet();
+          _selectedClientIds.removeWhere((id) => !liveIds.contains(id));
+        }),
+      ),
       _server.incomingMessages.listen((message) => _addConsole(SocketConsoleEntry(timestamp: message.timestamp, kind: SocketConsoleKind.incoming, text: message.text, source: message.sessionId))),
       _server.outgoingMessages.listen((message) => _addConsole(SocketConsoleEntry(timestamp: message.timestamp, kind: SocketConsoleKind.outgoing, text: message.text, source: message.sessionId))),
       _server.errors.listen((error) => _addError(error)),
@@ -100,6 +108,10 @@ class _TcpLabScreenState extends State<TcpLabScreen> {
             OutlinedButton.icon(onPressed: _restartServer, icon: const Icon(Icons.restart_alt, size: 18), label: const Text('Restart')),
             const SizedBox(width: 12),
             Chip(label: Text('${_clients.length} clients'), visualDensity: VisualDensity.compact),
+            const SizedBox(width: 8),
+            OutlinedButton.icon(onPressed: _clients.isEmpty ? null : _copyServerInfo, icon: const Icon(Icons.copy, size: 18), label: const Text('Copy info')),
+            const SizedBox(width: 8),
+            OutlinedButton.icon(onPressed: _selectedClientIds.isEmpty ? null : _closeSelectedClients, icon: const Icon(Icons.link_off, size: 18), label: const Text('Close selected')),
           ] else ...[
             SizedBox(width: 180, child: TextField(controller: _remoteHost, decoration: const InputDecoration(labelText: 'Remote Host', isDense: true))),
             const SizedBox(width: 8),
@@ -142,9 +154,20 @@ class _TcpLabScreenState extends State<TcpLabScreen> {
                   margin: const EdgeInsets.only(bottom: 4),
                   child: ListTile(
                     dense: true,
-                    leading: const Icon(Icons.computer, size: 20),
+                    leading: Checkbox(
+                      value: _selectedClientIds.contains(client.id),
+                      onChanged:
+                          (value) => setState(() {
+                            if (value == true) {
+                              _selectedClientIds.add(client.id);
+                            } else {
+                              _selectedClientIds.remove(client.id);
+                            }
+                          }),
+                    ),
                     title: Text('${client.remoteAddress}:${client.remotePort}', style: const TextStyle(fontFamily: 'monospace', fontSize: 12)),
                     subtitle: Text('Connected: ${client.connectedAt.toLocal()}', style: const TextStyle(fontSize: 11)),
+                    trailing: IconButton(tooltip: 'Close client', icon: const Icon(Icons.close, size: 18), onPressed: () => _server.closeSessions([client.id])),
                   ),
                 ),
               ),
@@ -179,15 +202,24 @@ class _TcpLabScreenState extends State<TcpLabScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('Payload Composer', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
+            if (_tab == 0) ...[const SizedBox(height: 4), Text(_selectedClientIds.isEmpty ? 'Server send target: all connected clients.' : 'Server send target: ${_selectedClientIds.length} selected client(s).', style: Theme.of(context).textTheme.bodySmall)],
             const SizedBox(height: 12),
             PayloadComposer(
               allowFraming: true,
               onSend: (payload) async {
                 try {
                   if (_tab == 0) {
-                    await _server.sendToAll(payload.text);
+                    if (_clients.isEmpty) {
+                      _addInfo('No clients connected.');
+                      return;
+                    }
+                    if (_selectedClientIds.isEmpty) {
+                      await _server.sendBytesToAll(payload.bytes);
+                    } else {
+                      await _server.sendBytesToSessions(_selectedClientIds, payload.bytes);
+                    }
                   } else {
-                    await _client.send(payload.text);
+                    await _client.sendBytes(payload.bytes);
                   }
                 } catch (error) {
                   _addError(error);
@@ -222,6 +254,20 @@ class _TcpLabScreenState extends State<TcpLabScreen> {
     } catch (error) {
       _addError(error);
     }
+  }
+
+  Future<void> _closeSelectedClients() async {
+    await _server.closeSessions(_selectedClientIds);
+    setState(_selectedClientIds.clear);
+  }
+
+  Future<void> _copyServerInfo() async {
+    await Clipboard.setData(ClipboardData(text: '${_serverHost.text.trim()}:${_serverPort.text.trim()}'));
+    _addInfo('Connection info copied.');
+  }
+
+  void _addInfo(String text) {
+    _addConsole(SocketConsoleEntry(timestamp: DateTime.now(), kind: SocketConsoleKind.info, text: text));
   }
 
   void _addError(Object error) {

@@ -31,7 +31,7 @@ class _DeviceManagerState extends State<_DeviceManager> {
           padding: const EdgeInsets.fromLTRB(16, 14, 12, 10),
           child: Row(
             children: [
-              Text('Device Profiles', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('Device Profiles', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)), Text('Editing is autosaved', style: Theme.of(context).textTheme.bodySmall)]),
               const Spacer(),
               if (hasSelection) ...[
                 Text('${_selectedIds.length} selected', style: Theme.of(context).textTheme.bodySmall),
@@ -182,11 +182,7 @@ class _DeviceEditorState extends State<_DeviceEditor> {
           ]),
           _section('TCP', [_field('Device IP', _draft.deviceIp, (value) => _update(_draft.copyWith(deviceIp: value))), _field('Device port', _draft.devicePort, (value) => _update(_draft.copyWith(devicePort: value)))]),
           _section('Serial', [_field('COM name', _draft.comName, (value) => _update(_draft.copyWith(comName: value))), _field('Baud rate', _draft.baudRate, (value) => _update(_draft.copyWith(baudRate: value)))]),
-          _section('Metadata', [
-            _field('Manufacturer', _draft.manufacturer, (value) => _update(_draft.copyWith(manufacturer: value))),
-            _field('Model', _draft.modelName, (value) => _update(_draft.copyWith(modelName: value))),
-            _field('Reader formats', _draft.readerCardFormats.join(', '), (value) => _update(_draft.copyWith(readerCardFormats: value.split(',').map((item) => item.trim()).where((item) => item.isNotEmpty).toList()))),
-          ]),
+          _section('Metadata', [_field('Manufacturer', _draft.manufacturer, (value) => _update(_draft.copyWith(manufacturer: value))), _field('Model', _draft.modelName, (value) => _update(_draft.copyWith(modelName: value))), _readerFormatsField()]),
           OverflowBar(
             alignment: MainAxisAlignment.end,
             children: [
@@ -207,9 +203,63 @@ class _DeviceEditorState extends State<_DeviceEditor> {
     return SizedBox(width: 200, child: TextFormField(key: ValueKey('${widget.device.id}_$label'), initialValue: value, decoration: InputDecoration(labelText: label), onChanged: onChanged));
   }
 
+  Widget _readerFormatsField() {
+    return SizedBox(
+      width: 420,
+      child: TextFormField(
+        key: ValueKey('${widget.device.id}_readerFormats'),
+        initialValue: _formatReaderFormats(_draft.readerCardFormats),
+        minLines: 2,
+        maxLines: 4,
+        decoration: const InputDecoration(labelText: 'Reader formats', hintText: '1=reverse4Bytes\n2=normal'),
+        onChanged: (value) {
+          try {
+            _update(_draft.copyWith(readerCardFormats: _parseReaderFormats(value)));
+          } catch (_) {
+            // Keep editing responsive; invalid lines are shown by validator on rebuild/save.
+          }
+        },
+        validator: (value) {
+          try {
+            _parseReaderFormats(value ?? '');
+            return null;
+          } catch (error) {
+            return error.toString();
+          }
+        },
+      ),
+    );
+  }
+
   void _update(CarParkingDeviceProfile value) {
     setState(() => _draft = value);
     widget.controller.updateDevice(value);
+  }
+
+  String _formatReaderFormats(Map<String, String> formats) {
+    return formats.entries.map((entry) => '${entry.key}=${entry.value}').join('\n');
+  }
+
+  Map<String, String> _parseReaderFormats(String text) {
+    final result = <String, String>{};
+    final lines = text.split(RegExp(r'[\r\n]+'));
+    for (final rawLine in lines) {
+      final line = rawLine.trim();
+      if (line.isEmpty) {
+        continue;
+      }
+      final separator = line.indexOf('=');
+      if (separator <= 0 || separator == line.length - 1) {
+        throw FormatException('Invalid reader format line: "$line". Use reader=format.');
+      }
+      final reader = line.substring(0, separator).trim();
+      final format = line.substring(separator + 1).trim();
+      if (reader.isEmpty || format.isEmpty) {
+        throw FormatException('Invalid reader format line: "$line". Use reader=format.');
+      }
+      result[reader] = format;
+    }
+    return result;
   }
 
   Future<void> _confirmDelete(BuildContext context) async {

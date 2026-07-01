@@ -27,20 +27,18 @@ class SerialPortEngine {
     try {
       return SerialPort.availablePorts;
     } catch (error) {
-      _errorController.add(error);
+      _errorController.add(_friendlySerialError(error));
       return const [];
     }
   }
 
-  Future<void> open({
-    required String name,
-    required int baudRate,
-    required int dataBits,
-    required int stopBits,
-    required int parity,
-  }) async {
+  Future<void> open({required String name, required int baudRate, required int dataBits, required int stopBits, required int parity}) async {
     await close();
     try {
+      final available = availablePorts();
+      if (!available.contains(name)) {
+        throw StateError('Serial port not found: $name.');
+      }
       final port = SerialPort(name);
       final config =
           SerialPortConfig()
@@ -48,9 +46,15 @@ class SerialPortEngine {
             ..bits = dataBits
             ..stopBits = stopBits
             ..parity = parity;
-      port.config = config;
+      try {
+        port.config = config;
+      } finally {
+        config.dispose();
+      }
       if (!port.openReadWrite()) {
-        throw SerialPort.lastError ?? StateError('Could not open serial port.');
+        final error = SerialPort.lastError;
+        port.dispose();
+        throw error ?? StateError('Could not open serial port $name.');
       }
       _port = port;
       _reader = SerialPortReader(port);
@@ -63,7 +67,7 @@ class SerialPortEngine {
       );
       _setState(SerialEngineState.open);
     } catch (error) {
-      _errorController.add(error);
+      _errorController.add(_friendlySerialError(error));
       _setState(SerialEngineState.error);
       rethrow;
     }
@@ -74,7 +78,12 @@ class SerialPortEngine {
     if (port == null || !port.isOpen) {
       throw StateError('Serial port is not open.');
     }
-    port.write(Uint8List.fromList(bytes));
+    final written = port.write(Uint8List.fromList(bytes));
+    if (written != bytes.length) {
+      final error = StateError('Serial write incomplete: wrote $written/${bytes.length} bytes.');
+      _errorController.add(error);
+      throw error;
+    }
     _outgoingController.add(bytes);
   }
 
@@ -84,8 +93,11 @@ class SerialPortEngine {
     await _subscription?.cancel();
     _subscription = null;
     _reader = null;
-    _port?.close();
-    _port?.dispose();
+    try {
+      _port?.close();
+    } finally {
+      _port?.dispose();
+    }
     _port = null;
     _setState(SerialEngineState.closed);
   }
@@ -103,5 +115,23 @@ class SerialPortEngine {
     if (!_stateController.isClosed) {
       _stateController.add(state);
     }
+  }
+
+  String _friendlySerialError(Object error) {
+    final text = error.toString();
+    final lower = text.toLowerCase();
+    if (lower.contains('permission') || lower.contains('access is denied')) {
+      return 'Permission denied while opening serial port. Close other apps or run with suitable permissions. ($text)';
+    }
+    if (lower.contains('busy') || lower.contains('already') || lower.contains('in use')) {
+      return 'Serial port is busy or already open. Close the other connection and retry. ($text)';
+    }
+    if (lower.contains('not found') || lower.contains('no such')) {
+      return 'Serial port not found. Refresh the port list and check the cable. ($text)';
+    }
+    if (lower.contains('unsupported') || lower.contains('failed to load') || lower.contains('library')) {
+      return 'Serial library is unavailable or unsupported on this platform. ($text)';
+    }
+    return text;
   }
 }
