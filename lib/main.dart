@@ -6,9 +6,11 @@ import 'package:path_provider/path_provider.dart';
 import 'package:socket_server/models/data_row.dart';
 import 'package:socket_server/models/device_info.dart';
 import 'package:socket_server/models/socket_server_info.dart';
+import 'package:socket_server/services/logger_service.dart';
 import 'package:socket_server/views/device_config_page.dart';
 
 void main() {
+  LoggerService().init();
   runApp(MyApp());
 }
 
@@ -36,6 +38,12 @@ class _SocketServerPageState extends State<SocketServerPage> {
   File? _socketServerFile;
   DeviceInfo? _deviceInfo;
   SocketServerInfo? _socketServerInfo;
+
+  // Auto Test State
+  bool _isAutoTestRunning = false;
+  Timer? _autoTestTimer;
+  int _currentAutoTestIndex = 0;
+  int _autoTestDelayMs = 1000;
 
   @override
   void initState() {
@@ -129,8 +137,8 @@ class _SocketServerPageState extends State<SocketServerPage> {
 
   Future<void> _startServer() async {
     try {
-      final ip = _socketServerInfo?.serverIp ?? '192.168.1.8';
-      final port = int.tryParse(_socketServerInfo?.serverPort ?? '8080') ?? 8080;
+      final ip = _socketServerInfo?.serverIp ?? InternetAddress.anyIPv4;
+      final port = int.tryParse(_socketServerInfo?.serverPort ?? '1234') ?? 1234;
       _serverSocket = await ServerSocket.bind(ip, port);
       setState(() {
         _isServerRunning = true;
@@ -177,7 +185,7 @@ class _SocketServerPageState extends State<SocketServerPage> {
   }
 
   void _sendHeartbeat() {
-    if (_deviceInfo == null){
+    if (_deviceInfo == null) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Chưa cấu hình thông tin thiết bị')));
       return;
     }
@@ -189,7 +197,10 @@ class _SocketServerPageState extends State<SocketServerPage> {
   }
 
   void _sendCardData(String cardId, String readerIndex) {
-    if (cardId.isEmpty || readerIndex.isEmpty) return;
+    if (cardId.isEmpty || readerIndex.isEmpty) {
+      LoggerService().logError("Send Card Data failed: Empty cardId or readerIndex");
+      return;
+    }
     final now = DateTime.now();
     final timestamp = now.millisecondsSinceEpoch ~/ 1000;
     final timeString = "${now.year}-${now.month}-${now.day} ${now.hour}:${now.minute}:${now.second}";
@@ -205,12 +216,20 @@ class _SocketServerPageState extends State<SocketServerPage> {
       "timestamp": timestamp,
     };
     _sendToClients(jsonEncode(cardData));
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Đã gửi iOStatus: $cardId - $readerIndex')));
+
+    final msg = 'Sent Card Data: $cardId - Reader $readerIndex';
+    LoggerService().log(msg);
+    if (!_isAutoTestRunning) {
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg), duration: Duration(milliseconds: 1000)));
+    }
   }
 
   void _sendIoStatus(String inputName) {
     if (_deviceInfo == null) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Chưa cấu hình thông tin thiết bị')));
+      const msg = 'Chưa cấu hình thông tin thiết bị';
+      LoggerService().logError(msg);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
       return;
     }
     final now = DateTime.now();
@@ -235,14 +254,19 @@ class _SocketServerPageState extends State<SocketServerPage> {
 
     final ioData = {
       "data": {"deviceInfo": _deviceInfo!.toJson(), "inputStatus": inputs, "relayStatus": relays, "id": _deviceInfo!.deviceId},
-      "eventType": "iOStatus",      
+      "eventType": "iOStatus",
       "index": 6,
       "timestamp": timestamp,
     };
 
     _sendToClients(jsonEncode(ioData));
 
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Đã gửi iOStatus: $inputName')));
+    final msg = 'Sent IO Status: $inputName';
+    LoggerService().log(msg);
+    if (!_isAutoTestRunning) {
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg), duration: Duration(milliseconds: 1000)));
+    }
   }
 
   void _sendToClients(String data) {
@@ -268,6 +292,91 @@ class _SocketServerPageState extends State<SocketServerPage> {
     print('Sent to ${_clients.length} clients: $data');
   }
 
+  void _toggleAutoTest() {
+    if (_isAutoTestRunning) {
+      _stopAutoTest();
+    } else {
+      _showAutoTestConfigDialog();
+    }
+  }
+
+  void _showAutoTestConfigDialog() {
+    final TextEditingController delayController = TextEditingController(text: _autoTestDelayMs.toString());
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text("Cấu hình Auto Test"),
+          content: Column(mainAxisSize: MainAxisSize.min, children: [Text("Nhập thời gian delay giữa các lần gửi (ms):"), TextField(controller: delayController, keyboardType: TextInputType.number, decoration: InputDecoration(suffixText: "ms"))]),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context), child: Text("Hủy")),
+            ElevatedButton(
+              onPressed: () {
+                final delay = int.tryParse(delayController.text);
+                if (delay != null && delay > 0) {
+                  _autoTestDelayMs = delay;
+                  Navigator.pop(context);
+                  _startAutoTest();
+                }
+              },
+              child: Text("Bắt đầu"),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _startAutoTest() {
+    if (_rows.isEmpty) {
+      LoggerService().logError("Cannot start Auto Test: No rows defined");
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Danh sách trống, không thể chạy Auto Test")));
+      return;
+    }
+    setState(() {
+      _isAutoTestRunning = true;
+      _currentAutoTestIndex = 0;
+    });
+    LoggerService().log("Auto Test STARTED. Delay: ${_autoTestDelayMs}ms");
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Auto Test STARTED. Delay: ${_autoTestDelayMs}ms"), duration: Duration(milliseconds: 1000)));
+    _heartbeatTimer?.cancel();
+    _autoTestTimer = Timer.periodic(Duration(milliseconds: _autoTestDelayMs), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      if (_rows.isEmpty) {
+        _stopAutoTest();
+        return;
+      }
+      _processAutoTestRow(_currentAutoTestIndex);
+      _currentAutoTestIndex = (_currentAutoTestIndex + 1) % _rows.length;
+    });
+  }
+
+  void _stopAutoTest() {
+    _autoTestTimer?.cancel();
+    setState(() {
+      _isAutoTestRunning = false;
+    });
+    LoggerService().log("Auto Test STOPPED");
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Auto Test STOPPED"), duration: Duration(milliseconds: 1000)));
+    _startHeartbeat();
+  }
+
+  void _processAutoTestRow(int index) {
+    if (index < 0 || index >= _rows.length) return;
+    final row = _rows[index];
+
+    if (row.type == RowType.card) {
+      _sendCardData(row.cardController.text, row.readerController.text);
+    } else {
+      _sendIoStatus(row.selectedInputName);
+    }
+  }
+
   Widget _buildCardReaderRow(int index) {
     final row = _rows[index];
     if (row.type == RowType.card) {
@@ -284,14 +393,17 @@ class _SocketServerPageState extends State<SocketServerPage> {
       decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(8)),
       child: Row(
         children: [
-          Expanded(flex: 2, child: TextField(controller: row.cardController, decoration: InputDecoration(labelText: "Số Thẻ"), onChanged: (_) => _saveData())),
+          Expanded(flex: 2, child: TextField(controller: row.cardController, enabled: !_isAutoTestRunning, decoration: InputDecoration(labelText: "Số Thẻ"), onChanged: (_) => _saveData())),
           SizedBox(width: 16),
-          Expanded(flex: 2, child: TextField(controller: row.readerController, decoration: InputDecoration(labelText: "Chân Reader"), onChanged: (_) => _saveData())),
+          Expanded(flex: 2, child: TextField(controller: row.readerController, enabled: !_isAutoTestRunning, decoration: InputDecoration(labelText: "Chân Reader"), onChanged: (_) => _saveData())),
           SizedBox(width: 16),
           ElevatedButton(
-            onPressed: () {
-              _sendCardData(row.cardController.text, row.readerController.text);
-            },
+            onPressed:
+                _isAutoTestRunning
+                    ? null
+                    : () {
+                      _sendCardData(row.cardController.text, row.readerController.text);
+                    },
             child: Text("Gửi"),
           ),
         ],
@@ -311,20 +423,26 @@ class _SocketServerPageState extends State<SocketServerPage> {
             child: DropdownButtonFormField<String>(
               value: row.selectedInputName,
               items: inputNames.map((name) => DropdownMenuItem(value: name, child: Text(name))).toList(),
-              onChanged: (val) {
-                setState(() {
-                  row.selectedInputName = val!;
-                });
-                _saveData();
-              },
+              onChanged:
+                  _isAutoTestRunning
+                      ? null
+                      : (val) {
+                        setState(() {
+                          row.selectedInputName = val!;
+                        });
+                        _saveData();
+                      },
               decoration: InputDecoration(labelText: "Chọn Input"),
             ),
           ),
           SizedBox(width: 16),
           ElevatedButton(
-            onPressed: () {
-              _sendIoStatus(row.selectedInputName);
-            },
+            onPressed:
+                _isAutoTestRunning
+                    ? null
+                    : () {
+                      _sendIoStatus(row.selectedInputName);
+                    },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.cyanAccent, textStyle: TextStyle(color: Colors.white)),
             child: Text("Gửi"),
           ),
@@ -337,20 +455,36 @@ class _SocketServerPageState extends State<SocketServerPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('SOCKET SERVER'),
+        title: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text('SOCKET SERVER', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(width: 12),
+
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+              decoration: BoxDecoration(
+                color: _isAutoTestRunning ? Colors.green.withOpacity(0.15) : Colors.red.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(999), // full pill
+                border: Border.all(color: _isAutoTestRunning ? Colors.green.withOpacity(0.4) : Colors.red.withOpacity(0.4)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(_isAutoTestRunning ? Icons.play_circle_filled : Icons.stop_circle, size: 18, color: _isAutoTestRunning ? Colors.green : Colors.red),
+                  const SizedBox(width: 6),
+                  Text(_isAutoTestRunning ? 'Auto Test: RUNNING' : 'Auto Test: STOPPED', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: _isAutoTestRunning ? Colors.green : Colors.red, letterSpacing: 0.3)),
+                ],
+              ),
+            ),
+          ],
+        ),
         actions: [
+          IconButton(icon: Icon(_isAutoTestRunning ? Icons.stop_circle : Icons.play_circle_fill), color: _isAutoTestRunning ? Colors.red : Colors.green, tooltip: _isAutoTestRunning ? "Dừng Auto Test" : "Chạy Auto Test", onPressed: _toggleAutoTest),
           IconButton(
             icon: Icon(Icons.settings),
             onPressed: () async {
-              final result = await Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => DeviceConfigPage(
-                    deviceInfo: _deviceInfo,
-                    socketServerInfo: _socketServerInfo,
-                  ),
-                ),
-              );
+              final result = await Navigator.push(context, MaterialPageRoute(builder: (_) => DeviceConfigPage(deviceInfo: _deviceInfo, socketServerInfo: _socketServerInfo)));
               if (result != null && result is DeviceInfo) {
                 setState(() {
                   _deviceInfo = result;
@@ -402,36 +536,39 @@ class _SocketServerPageState extends State<SocketServerPage> {
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
                 ElevatedButton.icon(
-                  onPressed: () async {
-                    final type = await showDialog<RowType>(
-                      context: context,
-                      builder:
-                          (_) => AlertDialog(
-                            title: Text("Chọn loại dòng"),
-                            content: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [ListTile(leading: Icon(Icons.credit_card), title: Text("Card"), onTap: () => Navigator.pop(context, RowType.card)), ListTile(leading: Icon(Icons.sensors), title: Text("Vòng từ (iOStatus)"), onTap: () => Navigator.pop(context, RowType.io))],
-                            ),
-                          ),
-                    );
-                    if (type != null) {
-                      setState(() {
-                        if (type == RowType.card) {
-                          _rows.add(DeviceRow.card());
-                        } else {
-                          _rows.add(DeviceRow.io());
-                        }
-                      });
-                      _saveData();
-                    }
-                  },
+                  onPressed:
+                      _isAutoTestRunning
+                          ? null
+                          : () async {
+                            final type = await showDialog<RowType>(
+                              context: context,
+                              builder:
+                                  (_) => AlertDialog(
+                                    title: Text("Chọn loại dòng"),
+                                    content: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [ListTile(leading: Icon(Icons.credit_card), title: Text("Card"), onTap: () => Navigator.pop(context, RowType.card)), ListTile(leading: Icon(Icons.sensors), title: Text("Vòng từ (iOStatus)"), onTap: () => Navigator.pop(context, RowType.io))],
+                                    ),
+                                  ),
+                            );
+                            if (type != null) {
+                              setState(() {
+                                if (type == RowType.card) {
+                                  _rows.add(DeviceRow.card());
+                                } else {
+                                  _rows.add(DeviceRow.io());
+                                }
+                              });
+                              _saveData();
+                            }
+                          },
                   icon: Icon(Icons.add),
                   label: Text("Thêm dòng"),
                 ),
 
                 ElevatedButton.icon(
                   onPressed:
-                      _rows.length > 1
+                      (_rows.length > 1 && !_isAutoTestRunning)
                           ? () {
                             setState(() {
                               _rows.last.dispose(); // Giải phóng controller
@@ -455,6 +592,7 @@ class _SocketServerPageState extends State<SocketServerPage> {
   @override
   void dispose() {
     _heartbeatTimer?.cancel();
+    _autoTestTimer?.cancel();
     _serverSocket?.close();
     for (Socket client in _clients) {
       client.close();

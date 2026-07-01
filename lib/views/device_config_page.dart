@@ -105,7 +105,7 @@ class _DeviceConfigPageState extends State<DeviceConfigPage> {
 
   Widget _buildField(String label, TextEditingController controller, {bool isRequired = false}) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       child: TextFormField(
         controller: controller,
         decoration: InputDecoration(
