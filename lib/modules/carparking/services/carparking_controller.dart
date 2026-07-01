@@ -87,7 +87,8 @@ class CarParkingController extends ChangeNotifier {
     _loading = true;
     notifyListeners();
 
-    _workspace = await _repository.load();
+    _workspace = _withUniqueRowIds(await _repository.load());
+    unawaited(_repository.save(_workspace));
     _serverState = _engine.state;
     _subscriptions.addAll([
       _engine.stateStream.listen((state) {
@@ -161,6 +162,10 @@ class CarParkingController extends ChangeNotifier {
 
   void addDevice() {
     final device = CarParkingDeviceProfile.defaults().copyWith(id: newCarParkingId('device'), label: 'Device ${devices.length + 1}');
+    addDeviceProfile(device);
+  }
+
+  void addDeviceProfile(CarParkingDeviceProfile device) {
     _workspace = _workspace.copyWith(devices: [...devices, device]);
     _scheduleSave();
     notifyListeners();
@@ -248,7 +253,7 @@ class CarParkingController extends ChangeNotifier {
       throw const FormatException('Expected a JSON array of rows.');
     }
     final imported = decoded.whereType<Map>().map((item) => CarParkingSignalRow.fromJson(Map<String, dynamic>.from(item))).map((row) => row.deviceProfileId.isEmpty ? row.copyWith(deviceProfileId: _workspace.defaultDeviceProfileId) : row).toList();
-    _workspace = _workspace.copyWith(rows: imported);
+    _workspace = _workspace.copyWith(rows: normalizeCarParkingSignalRowIds(imported));
     _scheduleSave();
     notifyListeners();
   }
@@ -263,6 +268,15 @@ class CarParkingController extends ChangeNotifier {
 
     final payload = row.type == CarParkingSignalType.card ? _payloadFactory.cardLog(device: device, row: row) : _payloadFactory.ioStatus(device: device, row: row);
     await _engine.sendToAll(_payloadFactory.encodeLine(payload), appendNewline: true);
+  }
+
+  String previewPayloadForRow(CarParkingSignalRow row) {
+    final device = _deviceForRow(row) ?? _defaultEnabledDevice();
+    if (device == null) {
+      return const JsonEncoder.withIndent('  ').convert({'error': 'No device profile configured'});
+    }
+    final payload = row.type == CarParkingSignalType.card ? _payloadFactory.cardLog(device: device, row: row) : _payloadFactory.ioStatus(device: device, row: row);
+    return const JsonEncoder.withIndent('  ').convert(payload);
   }
 
   Future<void> sendHeartbeat() async {
@@ -353,6 +367,10 @@ class CarParkingController extends ChangeNotifier {
       _console.removeRange(500, _console.length);
     }
     notifyListeners();
+  }
+
+  CarParkingWorkspace _withUniqueRowIds(CarParkingWorkspace workspace) {
+    return workspace.copyWith(rows: normalizeCarParkingSignalRowIds(workspace.rows));
   }
 }
 

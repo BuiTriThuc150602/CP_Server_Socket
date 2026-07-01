@@ -9,7 +9,14 @@ enum TcpServerState { stopped, starting, running, stopping, error }
 enum TcpClientStatus { connected, disconnected, error }
 
 class TcpClientSession {
-  const TcpClientSession({required this.id, required this.remoteAddress, required this.remotePort, required this.connectedAt, required this.status, this.lastMessageAt});
+  const TcpClientSession({
+    required this.id,
+    required this.remoteAddress,
+    required this.remotePort,
+    required this.connectedAt,
+    required this.status,
+    this.lastMessageAt,
+  });
 
   final String id;
   final String remoteAddress;
@@ -18,13 +25,28 @@ class TcpClientSession {
   final DateTime? lastMessageAt;
   final TcpClientStatus status;
 
-  TcpClientSession copyWith({DateTime? lastMessageAt, TcpClientStatus? status}) {
-    return TcpClientSession(id: id, remoteAddress: remoteAddress, remotePort: remotePort, connectedAt: connectedAt, lastMessageAt: lastMessageAt ?? this.lastMessageAt, status: status ?? this.status);
+  TcpClientSession copyWith({
+    DateTime? lastMessageAt,
+    TcpClientStatus? status,
+  }) {
+    return TcpClientSession(
+      id: id,
+      remoteAddress: remoteAddress,
+      remotePort: remotePort,
+      connectedAt: connectedAt,
+      lastMessageAt: lastMessageAt ?? this.lastMessageAt,
+      status: status ?? this.status,
+    );
   }
 }
 
 class TcpSocketMessage {
-  const TcpSocketMessage({required this.sessionId, required this.text, required this.timestamp, required this.direction});
+  const TcpSocketMessage({
+    required this.sessionId,
+    required this.text,
+    required this.timestamp,
+    required this.direction,
+  });
 
   final String sessionId;
   final String text;
@@ -35,7 +57,8 @@ class TcpSocketMessage {
 enum TcpMessageDirection { incoming, outgoing }
 
 class TcpServerEngine {
-  TcpServerEngine({LoggerService? logger}) : _logger = logger ?? LoggerService.instance;
+  TcpServerEngine({LoggerService? logger})
+    : _logger = logger ?? LoggerService.instance;
 
   final LoggerService _logger;
   final Map<String, Socket> _clientSockets = {};
@@ -47,7 +70,8 @@ class TcpServerEngine {
   TcpServerState _state = TcpServerState.stopped;
 
   final _stateController = StreamController<TcpServerState>.broadcast();
-  final _clientsController = StreamController<List<TcpClientSession>>.broadcast();
+  final _clientsController =
+      StreamController<List<TcpClientSession>>.broadcast();
   final _incomingController = StreamController<TcpSocketMessage>.broadcast();
   final _outgoingController = StreamController<TcpSocketMessage>.broadcast();
   final _errorController = StreamController<Object>.broadcast();
@@ -73,13 +97,21 @@ class TcpServerEngine {
     _setState(TcpServerState.starting);
     try {
       _serverSocket = await ServerSocket.bind(host, port, shared: true);
-      _serverSubscription = _serverSocket!.listen(_handleClient, onError: _handleServerError, onDone: () => _logger.socket('Server listener closed'));
+      _serverSubscription = _serverSocket!.listen(
+        _handleClient,
+        onError: _handleServerError,
+        onDone: () => _logger.socket('Server listener closed'),
+      );
       _setState(TcpServerState.running);
       await _logger.socket('Server started at $host:$port');
     } catch (error, stackTrace) {
       _setState(TcpServerState.error);
       _errorController.add(error);
-      await _logger.error('Server start failed at $host:$port', error, stackTrace);
+      await _logger.error(
+        'Server start failed at $host:$port',
+        error,
+        stackTrace,
+      );
       rethrow;
     }
   }
@@ -117,10 +149,18 @@ class TcpServerEngine {
   }
 
   Future<void> sendToAll(String text, {bool appendNewline = false}) async {
-    await sendToSessions(_clientSockets.keys.toList(), text, appendNewline: appendNewline);
+    await sendToSessions(
+      _clientSockets.keys.toList(),
+      text,
+      appendNewline: appendNewline,
+    );
   }
 
-  Future<void> sendToSessions(Iterable<String> sessionIds, String text, {bool appendNewline = false}) async {
+  Future<void> sendToSessions(
+    Iterable<String> sessionIds,
+    String text, {
+    bool appendNewline = false,
+  }) async {
     final payload = appendNewline && !text.endsWith('\n') ? '$text\n' : text;
     for (final sessionId in sessionIds) {
       final socket = _clientSockets[sessionId];
@@ -129,8 +169,16 @@ class TcpServerEngine {
       }
       try {
         socket.write(payload);
-        await socket.flush().timeout(const Duration(seconds: 2), onTimeout: () {});
-        final message = TcpSocketMessage(sessionId: sessionId, text: payload.trimRight(), timestamp: DateTime.now(), direction: TcpMessageDirection.outgoing);
+        await socket.flush().timeout(
+          const Duration(seconds: 2),
+          onTimeout: () {},
+        );
+        final message = TcpSocketMessage(
+          sessionId: sessionId,
+          text: payload.trimRight(),
+          timestamp: DateTime.now(),
+          direction: TcpMessageDirection.outgoing,
+        );
         _outgoingController.add(message);
         await _logger.socket('Outgoing [$sessionId]: ${message.text}');
       } catch (error, stackTrace) {
@@ -155,7 +203,13 @@ class TcpServerEngine {
     final id =
         '${socket.remoteAddress.address}:${socket.remotePort}:'
         '${now.microsecondsSinceEpoch}';
-    final session = TcpClientSession(id: id, remoteAddress: socket.remoteAddress.address, remotePort: socket.remotePort, connectedAt: now, status: TcpClientStatus.connected);
+    final session = TcpClientSession(
+      id: id,
+      remoteAddress: socket.remoteAddress.address,
+      remotePort: socket.remotePort,
+      connectedAt: now,
+      status: TcpClientStatus.connected,
+    );
 
     _clientSockets[id] = socket;
     _sessions[id] = session;
@@ -167,7 +221,12 @@ class TcpServerEngine {
         final text = utf8.decode(bytes, allowMalformed: true);
         _sessions[id] = _sessions[id]!.copyWith(lastMessageAt: DateTime.now());
         _emitClients();
-        final message = TcpSocketMessage(sessionId: id, text: text, timestamp: DateTime.now(), direction: TcpMessageDirection.incoming);
+        final message = TcpSocketMessage(
+          sessionId: id,
+          text: text,
+          timestamp: DateTime.now(),
+          direction: TcpMessageDirection.incoming,
+        );
         _incomingController.add(message);
         unawaited(_logger.socket('Incoming [$id]: $text'));
       },

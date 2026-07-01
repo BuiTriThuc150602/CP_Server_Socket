@@ -4,7 +4,9 @@ import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 
 class JsonStorageRepository {
-  JsonStorageRepository({Directory? rootDirectory, Directory? legacyDirectory}) : _rootDirectory = rootDirectory, _legacyDirectory = legacyDirectory;
+  JsonStorageRepository({Directory? rootDirectory, Directory? legacyDirectory})
+    : _rootDirectory = rootDirectory,
+      _legacyDirectory = legacyDirectory;
 
   Directory? _rootDirectory;
   Directory? _legacyDirectory;
@@ -61,7 +63,10 @@ class JsonStorageRepository {
 
   Future<void> writeMap(String filename, Map<String, dynamic> value) async {
     final target = await file(filename);
-    await target.writeAsString(const JsonEncoder.withIndent('  ').convert(value), flush: true);
+    await target.writeAsString(
+      const JsonEncoder.withIndent('  ').convert(value),
+      flush: true,
+    );
   }
 
   Future<Map<String, dynamic>?> _readMapFile(File file) async {

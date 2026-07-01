@@ -1,18 +1,341 @@
-import 'package:flutter/material.dart';
-import 'package:socket_server/core/ui/placeholder_module.dart';
+import 'dart:convert';
 
-class PayloadStudioScreen extends StatelessWidget {
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:socket_server/core/ui/module_workbench.dart';
+import 'package:socket_server/core/utils/payload_codec.dart';
+
+class PayloadStudioScreen extends StatefulWidget {
   const PayloadStudioScreen({super.key});
 
   @override
+  State<PayloadStudioScreen> createState() => _PayloadStudioScreenState();
+}
+
+class _PayloadStudioScreenState extends State<PayloadStudioScreen> {
+  final _input = TextEditingController();
+  final _output = TextEditingController();
+  String? _status;
+
+  @override
+  void dispose() {
+    _input.dispose();
+    _output.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return const PlaceholderModule(
-      title: 'Payload Studio / Converter',
-      bullets: [
-        'JSON formatting and validation',
-        'Text, UTF-8, and HEX conversion',
-        'Reusable payload snippets',
-      ],
+    return ModuleWorkbench(
+      header: _buildTopBar(),
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final editors =
+              constraints.maxWidth < 900
+                  ? Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [_editor('Input', _input), const SizedBox(height: 16), _editor('Output', _output, readOnly: true)])
+                  : Row(crossAxisAlignment: CrossAxisAlignment.start, children: [Expanded(child: _editor('Input', _input)), const SizedBox(width: 16), Expanded(child: _editor('Output', _output, readOnly: true))]);
+          return ListView(padding: const EdgeInsets.all(24), children: [if (_status != null) Padding(padding: const EdgeInsets.only(bottom: 16), child: Text(_status ?? 'Unknown', style: TextStyle(color: Theme.of(context).colorScheme.primary, fontWeight: FontWeight.w500))), editors]);
+        },
+      ),
     );
   }
+
+  Widget _buildTopBar() {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            // Snippets
+            ActionChip(avatar: const Icon(Icons.snippet_folder, size: 18), label: const Text('Insert Snippet'), onPressed: _showSnippetMenu),
+            const SizedBox(width: 8),
+
+            // JSON Tools
+            PopupMenuButton<String>(
+              onSelected: (value) {
+                if (value == 'pretty') _prettyJson();
+                if (value == 'minify') _minifyJson();
+              },
+              child: Chip(avatar: const Icon(Icons.code, size: 18), label: const Text('JSON Tools')),
+              itemBuilder: (context) => [const PopupMenuItem(value: 'pretty', child: Text('Pretty Print')), const PopupMenuItem(value: 'minify', child: Text('Minify'))],
+            ),
+
+            // Encoding Tools
+            PopupMenuButton<String>(
+              onSelected: (value) {
+                if (value == 'text_hex') _textToHex();
+                if (value == 'hex_text') _hexToText();
+                if (value == 'text_b64') _textToBase64();
+                if (value == 'b64_text') _base64ToText();
+              },
+              child: Chip(avatar: const Icon(Icons.transform, size: 18), label: const Text('Encoding')),
+              itemBuilder:
+                  (context) => [
+                    const PopupMenuItem(value: 'text_hex', child: Text('Text → HEX')),
+                    const PopupMenuItem(value: 'hex_text', child: Text('HEX → Text')),
+                    const PopupMenuDivider(),
+                    const PopupMenuItem(value: 'text_b64', child: Text('Text → Base64')),
+                    const PopupMenuItem(value: 'b64_text', child: Text('Base64 → Text')),
+                  ],
+            ),
+
+            // Number Converter
+            PopupMenuButton<String>(
+              onSelected: _handleNumberConversion,
+              child: Chip(avatar: const Icon(Icons.calculate, size: 18), label: const Text('Numbers')),
+              itemBuilder:
+                  (context) => [
+                    const PopupMenuItem(value: 'hex_dec', child: Text('HEX → DEC')),
+                    const PopupMenuItem(value: 'dec_hex', child: Text('DEC → HEX')),
+                    const PopupMenuItem(value: 'bin_dec', child: Text('BIN → DEC')),
+                    const PopupMenuItem(value: 'dec_bin', child: Text('DEC → BIN')),
+                    const PopupMenuItem(value: 'hex_bin', child: Text('HEX → BIN')),
+                    const PopupMenuItem(value: 'bin_hex', child: Text('BIN → HEX')),
+                  ],
+            ),
+
+            const SizedBox(width: 8),
+            IconButton.outlined(tooltip: 'Copy output', onPressed: () => Clipboard.setData(ClipboardData(text: _output.text)), icon: const Icon(Icons.copy)),
+            IconButton.outlined(
+              tooltip: 'Use output as input',
+              onPressed: () {
+                setState(() {
+                  _input.text = _output.text;
+                  _output.text = '';
+                  _status = 'Moved output to input.';
+                });
+              },
+              icon: const Icon(Icons.arrow_back),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _editor(String title, TextEditingController controller, {bool readOnly = false}) {
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            SizedBox(
+              height: 32,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Text(title, style: Theme.of(context).textTheme.titleSmall),
+                  const Spacer(),
+                  if (readOnly) IconButton(visualDensity: VisualDensity.compact, icon: const Icon(Icons.content_copy, size: 16), onPressed: () => Clipboard.setData(ClipboardData(text: controller.text)), tooltip: 'Copy') else const SizedBox(width: 40),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              height: 420,
+              child: TextField(
+                controller: controller,
+                readOnly: readOnly,
+                expands: true,
+                minLines: null,
+                maxLines: null,
+                textAlignVertical: TextAlignVertical.top,
+                style: const TextStyle(fontFamily: 'monospace', fontSize: 13),
+                decoration: InputDecoration(filled: true, fillColor: readOnly ? Theme.of(context).colorScheme.surface : null, border: const OutlineInputBorder(), contentPadding: const EdgeInsets.all(12)),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showSnippetMenu() {
+    showModalBottomSheet(
+      context: context,
+      builder:
+          (context) => SafeArea(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Padding(padding: EdgeInsets.all(16), child: Text('Insert Snippet', style: TextStyle(fontWeight: FontWeight.bold))),
+                ListTile(
+                  leading: const Icon(Icons.wifi),
+                  title: const Text('Connect Status'),
+                  onTap: () {
+                    _input.text = _connectStatusSnippet();
+                    _prettyJson();
+                    Navigator.pop(context);
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.credit_card),
+                  title: const Text('Card Log'),
+                  onTap: () {
+                    _input.text = _cardLogSnippet();
+                    _prettyJson();
+                    Navigator.pop(context);
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.input),
+                  title: const Text('IO Status'),
+                  onTap: () {
+                    _input.text = _ioStatusSnippet();
+                    _prettyJson();
+                    Navigator.pop(context);
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.data_object),
+                  title: const Text('Generic JSON'),
+                  onTap: () {
+                    _input.text = '{"key": "value"}';
+                    _prettyJson();
+                    Navigator.pop(context);
+                  },
+                ),
+              ],
+            ),
+          ),
+    );
+  }
+
+  void _handleNumberConversion(String value) {
+    final map = {
+      'hex_dec': () => _convertNumbers(_NumericBase.hex, _NumericBase.decimal),
+      'dec_hex': () => _convertNumbers(_NumericBase.decimal, _NumericBase.hex),
+      'bin_dec': () => _convertNumbers(_NumericBase.binary, _NumericBase.decimal),
+      'dec_bin': () => _convertNumbers(_NumericBase.decimal, _NumericBase.binary),
+      'hex_bin': () => _convertNumbers(_NumericBase.hex, _NumericBase.binary),
+      'bin_hex': () => _convertNumbers(_NumericBase.binary, _NumericBase.hex),
+    };
+    map[value]?.call();
+  }
+
+  // --- Logic Methods ---
+  void _prettyJson() => _guard(() => _output.text = PayloadCodec.prettyJson(_input.text));
+  void _minifyJson() => _guard(() => _output.text = PayloadCodec.minifyJson(_input.text));
+  void _textToHex() => _guard(() => _output.text = PayloadCodec.bytesToHex(utf8.encode(_input.text)));
+  void _hexToText() => _guard(() => _output.text = utf8.decode(PayloadCodec.hexToBytes(_input.text), allowMalformed: true));
+  void _textToBase64() => _guard(() => _output.text = base64Encode(utf8.encode(_input.text)));
+  void _base64ToText() => _guard(() => _output.text = utf8.decode(base64Decode(_input.text), allowMalformed: true));
+
+  void _convertNumbers(_NumericBase source, _NumericBase target) {
+    try {
+      final normalized = _normalizeNumericInput(_input.text, source);
+      final values = _parseNumericValues(normalized, source);
+      _output.text = values.map((value) => _formatNumber(value, target)).join(' ');
+      setState(() => _status = 'Converted ${values.length} values.');
+    } catch (error) {
+      setState(() => _status = error.toString());
+    }
+  }
+
+  void _guard(VoidCallback action) {
+    try {
+      action();
+      setState(() => _status = 'Action completed successfully');
+    } catch (error) {
+      setState(() => _status = error.toString());
+    }
+  }
+
+  // ... (Keep existing helper methods: _normalizeNumericInput, _connectStatusSnippet, etc.)
+  String _normalizeNumericInput(String input, _NumericBase source) {
+    final chunks = input.trim().replaceAll('_', '').replaceAll(RegExp(r'[\r\n\t,;|]+'), ' ').split(RegExp(r'\s+')).where((chunk) => chunk.trim().isNotEmpty).map((chunk) => _normalizeNumericToken(chunk, source)).toList();
+    if (chunks.isEmpty) {
+      throw const FormatException('Input is empty.');
+    }
+    return chunks.join(' ');
+  }
+
+  String _normalizeNumericToken(String token, _NumericBase source) {
+    var value = token.trim();
+    switch (source) {
+      case _NumericBase.hex:
+        value = value.replaceFirst(RegExp(r'^(0x|#)', caseSensitive: false), '').replaceFirst(RegExp(r'h$', caseSensitive: false), '').toUpperCase();
+        if (!RegExp(r'^[0-9A-F]+$').hasMatch(value)) {
+          throw FormatException('Invalid HEX token: $token');
+        }
+      case _NumericBase.decimal:
+        value = value.replaceFirst(RegExp(r'd$', caseSensitive: false), '');
+        if (!RegExp(r'^\d+$').hasMatch(value)) {
+          throw FormatException('Invalid decimal token: $token');
+        }
+      case _NumericBase.binary:
+        value = value.replaceFirst(RegExp(r'^0b', caseSensitive: false), '').replaceFirst(RegExp(r'b$', caseSensitive: false), '');
+        if (!RegExp(r'^[01]+$').hasMatch(value)) {
+          throw FormatException('Invalid binary token: $token');
+        }
+    }
+    return value;
+  }
+
+  List<BigInt> _parseNumericValues(String normalized, _NumericBase source) {
+    return normalized.split(' ').map((token) => BigInt.parse(token, radix: source.radix)).toList();
+  }
+
+  String _formatNumber(BigInt value, _NumericBase target) {
+    final converted = value.toRadixString(target.radix);
+    return switch (target) {
+      _NumericBase.hex => converted.length.isOdd ? '0${converted.toUpperCase()}' : converted.toUpperCase(),
+      _NumericBase.decimal => converted,
+      _NumericBase.binary => converted,
+    };
+  }
+
+  String _connectStatusSnippet() {
+    return jsonEncode({
+      'eventType': 'connectStatus',
+      'data': {
+        'connectStatus': 'connected',
+        'deviceInfo': {'deviceId': 'DEVICE_001', 'protocolType': 'TCP'},
+        'id': 'DEVICE_001',
+      },
+    });
+  }
+
+  String _cardLogSnippet() {
+    final now = DateTime.now();
+    return jsonEncode({
+      'data': {
+        'cardInfo': {'cardId': 'CARD001', 'readerIndex': 1, 'readerName': 'Reader 1', 'time': now.toString()},
+        'deviceInfo': {'deviceId': 'DEVICE_001', 'protocolType': 'TCP'},
+        'id': 'DEVICE_001',
+      },
+      'eventType': 'cardLog',
+      'index': 6,
+      'timestamp': now.millisecondsSinceEpoch ~/ 1000,
+    });
+  }
+
+  String _ioStatusSnippet() {
+    final now = DateTime.now();
+    return jsonEncode({
+      'data': {
+        'deviceInfo': {'deviceId': 'DEVICE_001', 'protocolType': 'TCP'},
+        'inputStatus': List.generate(8, (i) => {'inputIndex': i + 1, 'inputName': 'Input ${i + 1}', 'value': i == 0 ? 1 : 0}),
+        'relayStatus': List.generate(8, (i) => {'relayIndex': i + 1, 'relayName': 'Relay ${i + 1}', 'value': 0}),
+        'id': 'DEVICE_001',
+      },
+      'eventType': 'iOStatus',
+      'index': 6,
+      'timestamp': now.millisecondsSinceEpoch ~/ 1000,
+    });
+  }
+}
+
+enum _NumericBase {
+  hex(16),
+  decimal(10),
+  binary(2);
+
+  const _NumericBase(this.radix);
+  final int radix;
 }

@@ -2,8 +2,11 @@ enum CarParkingSignalType { card, io }
 
 enum CarParkingScenarioMode { sequential, random }
 
+int _carParkingIdCounter = 0;
+
 String newCarParkingId(String prefix) {
-  return '${prefix}_${DateTime.now().microsecondsSinceEpoch}';
+  _carParkingIdCounter++;
+  return '${prefix}_${DateTime.now().microsecondsSinceEpoch}_$_carParkingIdCounter';
 }
 
 class CarParkingDeviceProfile {
@@ -159,7 +162,7 @@ class CarParkingSignalRow {
   factory CarParkingSignalRow.fromJson(Map<String, dynamic> json) {
     final type = _signalType(json['type']);
     return CarParkingSignalRow(
-      id: (json['id'] ?? newCarParkingId('row')).toString(),
+      id: _idValue(json['id'], 'row'),
       label: (json['label'] ?? '').toString(),
       enabled: json['enabled'] != false,
       type: type,
@@ -266,10 +269,11 @@ class CarParkingWorkspace {
     final safeDevices = devices.isEmpty ? [CarParkingDeviceProfile.defaults()] : devices;
     final defaultDeviceId = (json['defaultDeviceProfileId'] ?? safeDevices.first.id).toString();
     final rows = _mapList(json['rows']).map(CarParkingSignalRow.fromJson).map((row) => row.deviceProfileId.isEmpty ? row.copyWith(deviceProfileId: defaultDeviceId) : row).toList();
+    final normalizedRows = _uniqueSignalRows(rows);
     return CarParkingWorkspace(
       devices: safeDevices,
       server: CarParkingServerProfile.fromJson(_mapValue(json['server']) ?? const {}),
-      rows: rows.isEmpty ? [CarParkingSignalRow.card(deviceProfileId: defaultDeviceId, label: 'Card 1')] : rows,
+      rows: normalizedRows.isEmpty ? [CarParkingSignalRow.card(deviceProfileId: defaultDeviceId, label: 'Card 1')] : normalizedRows,
       scenarios: _mapList(json['scenarios']).map(CarParkingScenario.fromJson).toList(),
       defaultDeviceProfileId: defaultDeviceId,
     );
@@ -296,6 +300,10 @@ class CarParkingWorkspace {
   CarParkingWorkspace copyWith({List<CarParkingDeviceProfile>? devices, CarParkingServerProfile? server, List<CarParkingSignalRow>? rows, List<CarParkingScenario>? scenarios, String? defaultDeviceProfileId}) {
     return CarParkingWorkspace(devices: devices ?? this.devices, server: server ?? this.server, rows: rows ?? this.rows, scenarios: scenarios ?? this.scenarios, defaultDeviceProfileId: defaultDeviceProfileId ?? this.defaultDeviceProfileId);
   }
+}
+
+List<CarParkingSignalRow> normalizeCarParkingSignalRowIds(List<CarParkingSignalRow> rows) {
+  return _uniqueSignalRows(rows);
 }
 
 List<String> _stringList(Object? value) {
@@ -333,6 +341,25 @@ int _intValue(Object? value, int fallback) {
     return value.toInt();
   }
   return int.tryParse(value?.toString() ?? '') ?? fallback;
+}
+
+String _idValue(Object? value, String prefix) {
+  final id = value?.toString().trim() ?? '';
+  return id.isEmpty ? newCarParkingId(prefix) : id;
+}
+
+List<CarParkingSignalRow> _uniqueSignalRows(List<CarParkingSignalRow> rows) {
+  final seen = <String>{};
+  final normalized = <CarParkingSignalRow>[];
+  for (final row in rows) {
+    var id = row.id.trim();
+    while (id.isEmpty || seen.contains(id)) {
+      id = newCarParkingId('row');
+    }
+    seen.add(id);
+    normalized.add(id == row.id ? row : row.copyWith(id: id));
+  }
+  return normalized;
 }
 
 CarParkingSignalType _signalType(Object? value) {
