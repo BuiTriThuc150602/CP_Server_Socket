@@ -9,10 +9,10 @@ import 'package:socket_server/models/socket_server_info.dart';
 class DeviceConfigPage extends StatefulWidget {
   final DeviceInfo? deviceInfo;
   final SocketServerInfo? socketServerInfo;
-  DeviceConfigPage({this.deviceInfo, this.socketServerInfo});
+  const DeviceConfigPage({super.key, this.deviceInfo, this.socketServerInfo});
 
   @override
-  _DeviceConfigPageState createState() => _DeviceConfigPageState();
+  State<DeviceConfigPage> createState() => _DeviceConfigPageState();
 }
 
 class _DeviceConfigPageState extends State<DeviceConfigPage> {
@@ -81,21 +81,21 @@ class _DeviceConfigPageState extends State<DeviceConfigPage> {
                       manufacturer: manuController.text,
                       modelName: modelController.text,
                       baudRate: baudRateController.text,
-                      comName: comNameController.text
+                      comName: comNameController.text,
                     );
                     await _saveDevice(device);
 
-                    final socketServer = SocketServerInfo(
-                      serverIp: serverIpController.text,
-                      serverPort: serverPortController.text,
-                    );
+                    final socketServer = SocketServerInfo(serverIp: serverIpController.text, serverPort: serverPortController.text);
                     await _saveSocketServerInfo(socketServer);
 
-                    Navigator.pop(context, device); // Only returning device for now, will need to adjust if both are returned
+                    if (!context.mounted) {
+                      return;
+                    }
+                    Navigator.pop(context, device);
                   }
                 },
                 child: Text("Lưu"),
-              )
+              ),
             ],
           ),
         ),
@@ -104,17 +104,7 @@ class _DeviceConfigPageState extends State<DeviceConfigPage> {
   }
 
   Widget _buildField(String label, TextEditingController controller, {bool isRequired = false}) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-      child: TextFormField(
-        controller: controller,
-        decoration: InputDecoration(
-          labelText: label,
-          border: OutlineInputBorder(),
-        ),
-        validator: (v) => isRequired && (v == null || v.isEmpty) ? "Không được bỏ trống" : null,
-      ),
-    );
+    return Padding(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12), child: TextFormField(controller: controller, decoration: InputDecoration(labelText: label, border: OutlineInputBorder()), validator: (v) => isRequired && (v == null || v.isEmpty) ? "Không được bỏ trống" : null));
   }
 
   Future<void> _saveDevice(DeviceInfo device) async {
@@ -122,6 +112,7 @@ class _DeviceConfigPageState extends State<DeviceConfigPage> {
     final file = File("${dir.path}/device.json");
     await file.writeAsString(jsonEncode(device.toJson()));
   }
+
   Future<void> _saveSocketServerInfo(SocketServerInfo socketServer) async {
     final dir = await getApplicationDocumentsDirectory();
     final file = File("${dir.path}/socket_server.json");

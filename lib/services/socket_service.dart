@@ -12,7 +12,7 @@ class SocketService {
 
   void sendToClients(String data) {
     for (final c in _clients) {
-      c.write(data + '\n');
+      c.write('$data\n');
     }
   }
 
