@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -15,10 +16,21 @@ class PayloadStudioScreen extends StatefulWidget {
 class _PayloadStudioScreenState extends State<PayloadStudioScreen> {
   final _input = TextEditingController();
   final _output = TextEditingController();
+  Timer? _autoRunDebounce;
+  _PayloadOperation? _activeOperation;
+  bool _autoRun = true;
   String? _status;
 
   @override
+  void initState() {
+    super.initState();
+    _input.addListener(_handleInputChanged);
+  }
+
+  @override
   void dispose() {
+    _autoRunDebounce?.cancel();
+    _input.removeListener(_handleInputChanged);
     _input.dispose();
     _output.dispose();
     super.dispose();
@@ -26,16 +38,29 @@ class _PayloadStudioScreenState extends State<PayloadStudioScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return ModuleWorkbench(
-      header: _buildTopBar(),
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          final editors =
-              constraints.maxWidth < 900
-                  ? Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [_editor('Input', _input), const SizedBox(height: 16), _editor('Output', _output, readOnly: true)])
-                  : Row(crossAxisAlignment: CrossAxisAlignment.start, children: [Expanded(child: _editor('Input', _input)), const SizedBox(width: 16), Expanded(child: _editor('Output', _output, readOnly: true))]);
-          return ListView(padding: const EdgeInsets.all(24), children: [if (_status != null) Padding(padding: const EdgeInsets.only(bottom: 16), child: Text(_status ?? 'Unknown', style: TextStyle(color: Theme.of(context).colorScheme.primary, fontWeight: FontWeight.w500))), editors]);
+    return Shortcuts(
+      shortcuts: const {SingleActivator(LogicalKeyboardKey.enter, control: true): _RunPayloadOperationIntent()},
+      child: Actions(
+        actions: {
+          _RunPayloadOperationIntent: CallbackAction<_RunPayloadOperationIntent>(
+            onInvoke: (_) {
+              _runActiveOperation();
+              return null;
+            },
+          ),
         },
+        child: ModuleWorkbench(
+          header: _buildTopBar(),
+          body: LayoutBuilder(
+            builder: (context, constraints) {
+              final editors =
+                  constraints.maxWidth < 900
+                      ? Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [_editor('Input', _input), const SizedBox(height: 16), _editor('Output', _output, readOnly: true)])
+                      : Row(crossAxisAlignment: CrossAxisAlignment.start, children: [Expanded(child: _editor('Input', _input)), const SizedBox(width: 16), Expanded(child: _editor('Output', _output, readOnly: true))]);
+              return ListView(padding: const EdgeInsets.all(24), children: [if (_status != null) Padding(padding: const EdgeInsets.only(bottom: 16), child: Text(_status ?? 'Unknown', style: TextStyle(color: Theme.of(context).colorScheme.primary, fontWeight: FontWeight.w500))), editors]);
+            },
+          ),
+        ),
       ),
     );
   }
@@ -55,8 +80,12 @@ class _PayloadStudioScreenState extends State<PayloadStudioScreen> {
             // JSON Tools
             PopupMenuButton<String>(
               onSelected: (value) {
-                if (value == 'pretty') _prettyJson();
-                if (value == 'minify') _minifyJson();
+                if (value == 'pretty') {
+                  _selectOperation(_PayloadOperation.jsonPretty);
+                }
+                if (value == 'minify') {
+                  _selectOperation(_PayloadOperation.jsonMinify);
+                }
               },
               child: Chip(avatar: const Icon(Icons.code, size: 18), label: const Text('JSON Tools')),
               itemBuilder: (context) => [const PopupMenuItem(value: 'pretty', child: Text('Pretty Print')), const PopupMenuItem(value: 'minify', child: Text('Minify'))],
@@ -65,10 +94,18 @@ class _PayloadStudioScreenState extends State<PayloadStudioScreen> {
             // Encoding Tools
             PopupMenuButton<String>(
               onSelected: (value) {
-                if (value == 'text_hex') _textToHex();
-                if (value == 'hex_text') _hexToText();
-                if (value == 'text_b64') _textToBase64();
-                if (value == 'b64_text') _base64ToText();
+                if (value == 'text_hex') {
+                  _selectOperation(_PayloadOperation.textToHex);
+                }
+                if (value == 'hex_text') {
+                  _selectOperation(_PayloadOperation.hexToText);
+                }
+                if (value == 'text_b64') {
+                  _selectOperation(_PayloadOperation.textToBase64);
+                }
+                if (value == 'b64_text') {
+                  _selectOperation(_PayloadOperation.base64ToText);
+                }
               },
               child: Chip(avatar: const Icon(Icons.transform, size: 18), label: const Text('Encoding')),
               itemBuilder:
@@ -113,6 +150,20 @@ class _PayloadStudioScreenState extends State<PayloadStudioScreen> {
                   ],
             ),
 
+            const SizedBox(width: 8),
+            Chip(avatar: const Icon(Icons.bolt, size: 16), label: Text(_activeOperation?.label ?? 'Choose an operation first'), visualDensity: VisualDensity.compact),
+            Tooltip(message: 'Run selected operation (Ctrl+Enter)', child: FilledButton.icon(onPressed: _activeOperation == null ? null : _runActiveOperation, icon: const Icon(Icons.play_arrow, size: 18), label: const Text('Run'))),
+            FilterChip(
+              label: const Text('Auto-run'),
+              selected: _autoRun,
+              onSelected: (value) {
+                setState(() => _autoRun = value);
+                if (value) {
+                  _scheduleAutoRun();
+                }
+              },
+              visualDensity: VisualDensity.compact,
+            ),
             const SizedBox(width: 8),
             IconButton.outlined(tooltip: 'Copy input', onPressed: () => Clipboard.setData(ClipboardData(text: _input.text)), icon: const Icon(Icons.input)),
             IconButton.outlined(tooltip: 'Copy output', onPressed: () => Clipboard.setData(ClipboardData(text: _output.text)), icon: const Icon(Icons.copy)),
@@ -189,7 +240,7 @@ class _PayloadStudioScreenState extends State<PayloadStudioScreen> {
                   title: const Text('Connect Status'),
                   onTap: () {
                     _input.text = _connectStatusSnippet();
-                    _prettyJson();
+                    _selectOperation(_PayloadOperation.jsonPretty);
                     Navigator.pop(context);
                   },
                 ),
@@ -198,7 +249,7 @@ class _PayloadStudioScreenState extends State<PayloadStudioScreen> {
                   title: const Text('Card Log'),
                   onTap: () {
                     _input.text = _cardLogSnippet();
-                    _prettyJson();
+                    _selectOperation(_PayloadOperation.jsonPretty);
                     Navigator.pop(context);
                   },
                 ),
@@ -207,7 +258,7 @@ class _PayloadStudioScreenState extends State<PayloadStudioScreen> {
                   title: const Text('IO Status'),
                   onTap: () {
                     _input.text = _ioStatusSnippet();
-                    _prettyJson();
+                    _selectOperation(_PayloadOperation.jsonPretty);
                     Navigator.pop(context);
                   },
                 ),
@@ -216,7 +267,7 @@ class _PayloadStudioScreenState extends State<PayloadStudioScreen> {
                   title: const Text('Generic JSON'),
                   onTap: () {
                     _input.text = '{"key": "value"}';
-                    _prettyJson();
+                    _selectOperation(_PayloadOperation.jsonPretty);
                     Navigator.pop(context);
                   },
                 ),
@@ -251,34 +302,24 @@ class _PayloadStudioScreenState extends State<PayloadStudioScreen> {
   }
 
   void _handleNumberConversion(String value) {
-    final map = {
-      'hex_dec': () => _convertNumbers(_NumericBase.hex, _NumericBase.decimal),
-      'dec_hex': () => _convertNumbers(_NumericBase.decimal, _NumericBase.hex),
-      'bin_dec': () => _convertNumbers(_NumericBase.binary, _NumericBase.decimal),
-      'dec_bin': () => _convertNumbers(_NumericBase.decimal, _NumericBase.binary),
-      'hex_bin': () => _convertNumbers(_NumericBase.hex, _NumericBase.binary),
-      'bin_hex': () => _convertNumbers(_NumericBase.binary, _NumericBase.hex),
-    };
-    map[value]?.call();
+    final map = {'hex_dec': _PayloadOperation.hexToDecimal, 'dec_hex': _PayloadOperation.decimalToHex, 'bin_dec': _PayloadOperation.binaryToDecimal, 'dec_bin': _PayloadOperation.decimalToBinary, 'hex_bin': _PayloadOperation.hexToBinary, 'bin_hex': _PayloadOperation.binaryToHex};
+    final operation = map[value];
+    if (operation != null) {
+      _selectOperation(operation);
+    }
   }
 
   void _handleUtility(String value) {
     final now = DateTime.now();
     switch (value) {
       case 'xor':
-        _guard(() {
-          final checksum = PayloadCodec.xorChecksum(PayloadCodec.hexToBytes(_input.text));
-          _output.text = checksum.toRadixString(16).padLeft(2, '0').toUpperCase();
-        });
+        _selectOperation(_PayloadOperation.xorChecksum);
       case 'lrc':
-        _guard(() {
-          final checksum = PayloadCodec.lrcChecksum(PayloadCodec.hexToBytes(_input.text));
-          _output.text = checksum.toRadixString(16).padLeft(2, '0').toUpperCase();
-        });
+        _selectOperation(_PayloadOperation.lrcChecksum);
       case 'byte_length':
-        _guard(() => _output.text = PayloadCodec.hexToBytes(_input.text).length.toString());
+        _selectOperation(_PayloadOperation.hexByteLength);
       case 'utf8_length':
-        _guard(() => _output.text = utf8.encode(_input.text).length.toString());
+        _selectOperation(_PayloadOperation.utf8ByteLength);
       case 'unix_seconds':
         _output.text = (now.millisecondsSinceEpoch ~/ 1000).toString();
         setState(() => _status = 'Timestamp generated.');
@@ -294,22 +335,63 @@ class _PayloadStudioScreenState extends State<PayloadStudioScreen> {
     }
   }
 
-  // --- Logic Methods ---
-  void _prettyJson() => _guard(() => _output.text = PayloadCodec.prettyJson(_input.text));
-  void _minifyJson() => _guard(() => _output.text = PayloadCodec.minifyJson(_input.text));
-  void _textToHex() => _guard(() => _output.text = PayloadCodec.bytesToHex(utf8.encode(_input.text)));
-  void _hexToText() => _guard(() => _output.text = utf8.decode(PayloadCodec.hexToBytes(_input.text), allowMalformed: true));
-  void _textToBase64() => _guard(() => _output.text = base64Encode(utf8.encode(_input.text)));
-  void _base64ToText() => _guard(() => _output.text = utf8.decode(base64Decode(_input.text), allowMalformed: true));
+  void _handleInputChanged() {
+    if (_autoRun) {
+      _scheduleAutoRun();
+    }
+  }
 
-  void _convertNumbers(_NumericBase source, _NumericBase target) {
+  void _scheduleAutoRun() {
+    _autoRunDebounce?.cancel();
+    if (_activeOperation == null) {
+      return;
+    }
+    _autoRunDebounce = Timer(const Duration(milliseconds: 400), _runActiveOperation);
+  }
+
+  void _selectOperation(_PayloadOperation operation) {
+    setState(() => _activeOperation = operation);
+    _runActiveOperation();
+  }
+
+  void _runActiveOperation() {
+    final operation = _activeOperation;
+    if (operation == null) {
+      setState(() => _status = 'Choose an operation first.');
+      return;
+    }
+    _guard(() => _output.text = _runOperation(operation));
+  }
+
+  String _runOperation(_PayloadOperation operation) {
+    return switch (operation) {
+      _PayloadOperation.jsonPretty => PayloadCodec.prettyJson(_input.text),
+      _PayloadOperation.jsonMinify => PayloadCodec.minifyJson(_input.text),
+      _PayloadOperation.textToHex => PayloadCodec.bytesToHex(utf8.encode(_input.text)),
+      _PayloadOperation.hexToText => utf8.decode(PayloadCodec.hexToBytes(_input.text), allowMalformed: true),
+      _PayloadOperation.textToBase64 => base64Encode(utf8.encode(_input.text)),
+      _PayloadOperation.base64ToText => utf8.decode(base64Decode(_input.text), allowMalformed: true),
+      _PayloadOperation.hexToDecimal => _convertNumbers(_NumericBase.hex, _NumericBase.decimal),
+      _PayloadOperation.decimalToHex => _convertNumbers(_NumericBase.decimal, _NumericBase.hex),
+      _PayloadOperation.binaryToDecimal => _convertNumbers(_NumericBase.binary, _NumericBase.decimal),
+      _PayloadOperation.decimalToBinary => _convertNumbers(_NumericBase.decimal, _NumericBase.binary),
+      _PayloadOperation.hexToBinary => _convertNumbers(_NumericBase.hex, _NumericBase.binary),
+      _PayloadOperation.binaryToHex => _convertNumbers(_NumericBase.binary, _NumericBase.hex),
+      _PayloadOperation.xorChecksum => PayloadCodec.xorChecksum(PayloadCodec.hexToBytes(_input.text)).toRadixString(16).padLeft(2, '0').toUpperCase(),
+      _PayloadOperation.lrcChecksum => PayloadCodec.lrcChecksum(PayloadCodec.hexToBytes(_input.text)).toRadixString(16).padLeft(2, '0').toUpperCase(),
+      _PayloadOperation.hexByteLength => PayloadCodec.hexToBytes(_input.text).length.toString(),
+      _PayloadOperation.utf8ByteLength => utf8.encode(_input.text).length.toString(),
+    };
+  }
+
+  String _convertNumbers(_NumericBase source, _NumericBase target) {
     try {
       final normalized = _normalizeNumericInput(_input.text, source);
       final values = _parseNumericValues(normalized, source);
-      _output.text = values.map((value) => _formatNumber(value, target)).join(' ');
       setState(() => _status = 'Converted ${values.length} values.');
+      return values.map((value) => _formatNumber(value, target)).join(' ');
     } catch (error) {
-      setState(() => _status = error.toString());
+      throw FormatException(error.toString());
     }
   }
 
@@ -431,4 +513,31 @@ enum _NumericBase {
 
   const _NumericBase(this.radix);
   final int radix;
+}
+
+class _RunPayloadOperationIntent extends Intent {
+  const _RunPayloadOperationIntent();
+}
+
+enum _PayloadOperation {
+  jsonPretty('JSON pretty'),
+  jsonMinify('JSON minify'),
+  textToHex('Text -> HEX'),
+  hexToText('HEX -> Text'),
+  textToBase64('Text -> Base64'),
+  base64ToText('Base64 -> Text'),
+  hexToDecimal('HEX -> DEC'),
+  decimalToHex('DEC -> HEX'),
+  binaryToDecimal('BIN -> DEC'),
+  decimalToBinary('DEC -> BIN'),
+  hexToBinary('HEX -> BIN'),
+  binaryToHex('BIN -> HEX'),
+  xorChecksum('XOR checksum'),
+  lrcChecksum('LRC checksum'),
+  hexByteLength('HEX byte length'),
+  utf8ByteLength('UTF-8 byte length');
+
+  const _PayloadOperation(this.label);
+
+  final String label;
 }

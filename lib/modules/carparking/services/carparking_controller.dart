@@ -64,6 +64,7 @@ class CarParkingController extends ChangeNotifier {
   TcpServerState _serverState = TcpServerState.stopped;
   ScenarioRunnerSnapshot _runnerSnapshot = ScenarioRunnerSnapshot.stopped;
   final List<ConsoleEntry> _console = [];
+  ConsoleEntry? _lastConsoleEntry;
 
   CarParkingWorkspace get workspace => _workspace;
   List<CarParkingDeviceProfile> get devices => _workspace.devices;
@@ -414,11 +415,25 @@ class CarParkingController extends ChangeNotifier {
   }
 
   void _addConsole(ConsoleEntry entry) {
+    if (_isDuplicateConsoleEntry(entry)) {
+      return;
+    }
     _console.insert(0, entry);
     if (_console.length > 500) {
       _console.removeRange(500, _console.length);
     }
     notifyListeners();
+  }
+
+  bool _isDuplicateConsoleEntry(ConsoleEntry entry) {
+    final last = _lastConsoleEntry;
+    _lastConsoleEntry = entry;
+    if (last == null) {
+      return false;
+    }
+    // The TCP engine reports runtime errors through its stream and also throws
+    // to callers. This tiny window removes only that callback-path duplicate.
+    return entry.kind == last.kind && entry.sessionId == last.sessionId && entry.text == last.text && entry.timestamp.difference(last.timestamp).abs() <= const Duration(milliseconds: 300);
   }
 
   CarParkingWorkspace _withUniqueRowIds(CarParkingWorkspace workspace) {

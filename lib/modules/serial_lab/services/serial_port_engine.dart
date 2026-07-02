@@ -67,9 +67,10 @@ class SerialPortEngine {
       );
       _setState(SerialEngineState.open);
     } catch (error) {
-      _errorController.add(_friendlySerialError(error));
+      final friendlyError = StateError(_friendlySerialError(error));
+      _errorController.add(friendlyError);
       _setState(SerialEngineState.error);
-      rethrow;
+      throw friendlyError;
     }
   }
 

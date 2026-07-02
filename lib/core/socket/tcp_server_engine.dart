@@ -82,9 +82,10 @@ class TcpServerEngine {
     } catch (error, stackTrace) {
       _setState(TcpServerState.error);
       final friendlyError = _friendlyBindError(host, port, error);
-      _errorController.add(friendlyError);
+      final stateError = StateError(friendlyError);
+      _errorController.add(stateError);
       await _logger.error('Server start failed at $host:$port', error, stackTrace);
-      throw StateError(friendlyError);
+      throw stateError;
     }
   }
 

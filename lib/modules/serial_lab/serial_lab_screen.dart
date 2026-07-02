@@ -18,6 +18,7 @@ class _SerialLabScreenState extends State<SerialLabScreen> {
   final _engine = SerialPortEngine();
   final _payload = TextEditingController();
   final List<SocketConsoleEntry> _console = [];
+  final _consoleDeduper = SocketConsoleDeduper();
   final List<StreamSubscription<dynamic>> _subscriptions = [];
   List<String> _ports = const [];
   String? _selectedPort;
@@ -230,6 +231,9 @@ class _SerialLabScreenState extends State<SerialLabScreen> {
   }
 
   void _addConsole(SocketConsoleEntry entry) {
+    if (_consoleDeduper.shouldSuppress(entry)) {
+      return;
+    }
     setState(() {
       _console.insert(0, entry);
       if (_console.length > 500) {

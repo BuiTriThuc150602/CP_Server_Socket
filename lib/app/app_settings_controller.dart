@@ -34,4 +34,13 @@ class AppSettingsController extends ChangeNotifier {
     };
     return setThemeMode(next);
   }
+
+  Future<void> dismissTerminalWarning() async {
+    if (_settings.terminalWarningDismissed) {
+      return;
+    }
+    _settings = _settings.copyWith(terminalWarningDismissed: true);
+    notifyListeners();
+    await _repository.save(_settings);
+  }
 }

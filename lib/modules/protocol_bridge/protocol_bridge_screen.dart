@@ -26,6 +26,7 @@ class _ProtocolBridgeScreenState extends State<ProtocolBridgeScreen> {
   final _port = TextEditingController(text: '9100');
   final _wsUrl = TextEditingController(text: 'ws://127.0.0.1:8080');
   final List<SocketConsoleEntry> _console = [];
+  final _consoleDeduper = SocketConsoleDeduper();
   final List<StreamSubscription<dynamic>> _subscriptions = [];
   BridgeTarget _target = BridgeTarget.consoleOnly;
   BridgeTransform _transform = BridgeTransform.none;
@@ -261,6 +262,9 @@ class _ProtocolBridgeScreenState extends State<ProtocolBridgeScreen> {
   }
 
   void _addConsole(SocketConsoleEntry entry) {
+    if (_consoleDeduper.shouldSuppress(entry)) {
+      return;
+    }
     setState(() {
       _console.insert(0, entry);
       if (_console.length > 500) {

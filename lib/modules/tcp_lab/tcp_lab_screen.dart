@@ -23,6 +23,7 @@ class _TcpLabScreenState extends State<TcpLabScreen> {
   final _remoteHost = TextEditingController(text: '127.0.0.1');
   final _remotePort = TextEditingController(text: '9000');
   final List<SocketConsoleEntry> _console = [];
+  final _consoleDeduper = SocketConsoleDeduper();
   final List<StreamSubscription<dynamic>> _subscriptions = [];
   TcpServerState _serverState = TcpServerState.stopped;
   TcpClientConnectionState _clientState = TcpClientConnectionState.disconnected;
@@ -275,6 +276,9 @@ class _TcpLabScreenState extends State<TcpLabScreen> {
   }
 
   void _addConsole(SocketConsoleEntry entry) {
+    if (_consoleDeduper.shouldSuppress(entry)) {
+      return;
+    }
     setState(() {
       _console.insert(0, entry);
       if (_console.length > 500) {

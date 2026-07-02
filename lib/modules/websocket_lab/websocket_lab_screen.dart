@@ -17,6 +17,7 @@ class _WebSocketLabScreenState extends State<WebSocketLabScreen> {
   final _engine = WebSocketClientEngine();
   final _url = TextEditingController(text: 'ws://127.0.0.1:8080');
   final List<SocketConsoleEntry> _console = [];
+  final _consoleDeduper = SocketConsoleDeduper();
   final List<StreamSubscription<dynamic>> _subscriptions = [];
   WebSocketClientState _state = WebSocketClientState.disconnected;
 
@@ -110,6 +111,9 @@ class _WebSocketLabScreenState extends State<WebSocketLabScreen> {
   }
 
   void _addConsole(SocketConsoleEntry entry) {
+    if (_consoleDeduper.shouldSuppress(entry)) {
+      return;
+    }
     setState(() {
       _console.insert(0, entry);
       if (_console.length > 500) {
