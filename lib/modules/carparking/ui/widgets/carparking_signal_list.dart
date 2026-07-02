@@ -93,15 +93,30 @@ class _CarParkingSignalListState extends State<CarParkingSignalList> {
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
             child: Row(
               children: [
-                // Select All checkbox
-                Tooltip(
-                  message: _allSelected ? 'Deselect all' : 'Select all',
-                  child: Checkbox(
-                    tristate: true,
-                    value: _allSelected ? true : (_someSelected ? null : false),
-                    onChanged: (_) => _toggleSelectAll(),
+                InkWell(
+                  onTap: _toggleSelectAll,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Tooltip(
+                        message:
+                            _allSelected
+                                ? 'Deselect visible rows'
+                                : 'Select all visible rows',
+                        child: Checkbox(
+                          tristate: true,
+                          value:
+                              _allSelected
+                                  ? true
+                                  : (_someSelected ? null : false),
+                          onChanged: (_) => _toggleSelectAll(),
+                        ),
+                      ),
+                      const Text('Select all visible'),
+                    ],
                   ),
                 ),
+                const SizedBox(width: 8),
                 // Search field – takes remaining space
                 Expanded(
                   child: TextField(
@@ -119,7 +134,7 @@ class _CarParkingSignalListState extends State<CarParkingSignalList> {
                   ),
                 ),
                 const SizedBox(width: 8),
-                _rowsMenu(selectedRows),
+                _rowsMenu(),
                 const SizedBox(width: 8),
                 // Filter & View popup
                 PopupMenuButton<String>(
@@ -344,8 +359,8 @@ class _CarParkingSignalListState extends State<CarParkingSignalList> {
     final count = widget.selectedRows.length;
     final running = widget.controller.autoTestRunning;
     return Container(
-      height: 42,
-      padding: const EdgeInsets.symmetric(horizontal: 8),
+      constraints: const BoxConstraints(minHeight: 42),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
       decoration: BoxDecoration(
         color: Theme.of(
           context,
@@ -355,84 +370,89 @@ class _CarParkingSignalListState extends State<CarParkingSignalList> {
           bottom: BorderSide(color: Theme.of(context).dividerColor),
         ),
       ),
-      child: Row(
-        children: [
-          Icon(
-            Icons.checklist_rtl,
-            size: 18,
-            color: Theme.of(context).colorScheme.primary,
-          ),
-          const SizedBox(width: 8),
-          Text(
-            '$count selected',
-            style: Theme.of(
-              context,
-            ).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w800),
-          ),
-          const SizedBox(width: 12),
-          FilledButton.icon(
-            onPressed:
-                selectedRows.isEmpty
-                    ? null
-                    : () => _sendSelectedOnce(selectedRows),
-            icon: const Icon(Icons.send, size: 16),
-            label: const Text('Send selected'),
-          ),
-          const SizedBox(width: 6),
-          OutlinedButton.icon(
-            onPressed:
-                selectedRows.isEmpty || running
-                    ? null
-                    : () => _runSelected(selectedRows),
-            icon: const Icon(Icons.playlist_play, size: 16),
-            label: const Text('Run selected'),
-          ),
-          const SizedBox(width: 6),
-          OutlinedButton.icon(
-            onPressed:
-                () =>
-                    widget.controller.setRowsEnabled(widget.selectedRows, true),
-            icon: const Icon(Icons.visibility, size: 16),
-            label: const Text('Enable'),
-          ),
-          const SizedBox(width: 6),
-          OutlinedButton.icon(
-            onPressed:
-                () => widget.controller.setRowsEnabled(
-                  widget.selectedRows,
-                  false,
-                ),
-            icon: const Icon(Icons.visibility_off, size: 16),
-            label: const Text('Disable'),
-          ),
-          const SizedBox(width: 6),
-          OutlinedButton.icon(
-            onPressed: running ? null : _duplicateSelected,
-            icon: const Icon(Icons.copy, size: 16),
-            label: const Text('Duplicate'),
-          ),
-          const SizedBox(width: 6),
-          FilledButton.icon(
-            style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.error,
-              foregroundColor: Theme.of(context).colorScheme.onError,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            Icon(
+              Icons.checklist_rtl,
+              size: 18,
+              color: Theme.of(context).colorScheme.primary,
             ),
-            onPressed: running ? null : _deleteSelected,
-            icon: const Icon(Icons.delete_outline, size: 16),
-            label: const Text('Delete selected'),
-          ),
-          const Spacer(),
-          TextButton.icon(
-            onPressed: _clearSelection,
-            icon: const Icon(Icons.close, size: 16),
-            label: const Text('Clear selection'),
-          ),
-        ],
+            const SizedBox(width: 8),
+            Text(
+              '$count selected',
+              style: Theme.of(
+                context,
+              ).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(width: 12),
+            FilledButton.icon(
+              onPressed:
+                  selectedRows.isEmpty
+                      ? null
+                      : () => _sendSelectedOnce(selectedRows),
+              icon: const Icon(Icons.send, size: 16),
+              label: const Text('Send'),
+            ),
+            const SizedBox(width: 6),
+            OutlinedButton.icon(
+              onPressed:
+                  selectedRows.isEmpty || running
+                      ? null
+                      : () => _runSelected(selectedRows),
+              icon: const Icon(Icons.playlist_play, size: 16),
+              label: const Text('Run'),
+            ),
+            const SizedBox(width: 6),
+            OutlinedButton.icon(
+              onPressed:
+                  () => widget.controller.setRowsEnabled(
+                    widget.selectedRows,
+                    true,
+                  ),
+              icon: const Icon(Icons.visibility, size: 16),
+              label: const Text('Enable'),
+            ),
+            const SizedBox(width: 6),
+            OutlinedButton.icon(
+              onPressed:
+                  () => widget.controller.setRowsEnabled(
+                    widget.selectedRows,
+                    false,
+                  ),
+              icon: const Icon(Icons.visibility_off, size: 16),
+              label: const Text('Disable'),
+            ),
+            const SizedBox(width: 6),
+            OutlinedButton.icon(
+              onPressed: running ? null : _duplicateSelected,
+              icon: const Icon(Icons.copy, size: 16),
+              label: const Text('Duplicate'),
+            ),
+            const SizedBox(width: 6),
+            FilledButton.icon(
+              style: FilledButton.styleFrom(
+                backgroundColor: Theme.of(context).colorScheme.error,
+                foregroundColor: Theme.of(context).colorScheme.onError,
+              ),
+              onPressed: running ? null : _deleteSelected,
+              icon: const Icon(Icons.delete_outline, size: 16),
+              label: const Text('Delete'),
+            ),
+            const SizedBox(width: 12),
+            TextButton.icon(
+              onPressed: _clearSelection,
+              icon: const Icon(Icons.close, size: 16),
+              label: const Text('Clear'),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _rowsMenu(List<CarParkingSignalRow> selectedRows) {
+  Widget _rowsMenu() {
     final hasSelection = widget.selectedRows.isNotEmpty;
     return PopupMenuButton<String>(
       tooltip: 'Rows',
@@ -457,18 +477,6 @@ class _CarParkingSignalListState extends State<CarParkingSignalList> {
                 ),
               ),
             );
-          case 'duplicate_selected':
-            widget.controller.duplicateRows(widget.selectedRows);
-          case 'delete_selected':
-            await _deleteSelected();
-          case 'enable_selected':
-            widget.controller.setRowsEnabled(widget.selectedRows, true);
-          case 'disable_selected':
-            widget.controller.setRowsEnabled(widget.selectedRows, false);
-          case 'send_selected':
-            await _sendSelectedOnce(selectedRows);
-          case 'clear_selection':
-            _clearSelection();
         }
       },
       itemBuilder:
@@ -485,38 +493,6 @@ class _CarParkingSignalListState extends State<CarParkingSignalList> {
               enabled: hasSelection,
               value: 'export_selected',
               child: const Text('Export selected rows JSON'),
-            ),
-            const PopupMenuDivider(),
-            PopupMenuItem(
-              enabled: hasSelection && !widget.controller.autoTestRunning,
-              value: 'send_selected',
-              child: const Text('Send selected once'),
-            ),
-            PopupMenuItem(
-              enabled: hasSelection && !widget.controller.autoTestRunning,
-              value: 'duplicate_selected',
-              child: const Text('Duplicate selected rows'),
-            ),
-            PopupMenuItem(
-              enabled: hasSelection,
-              value: 'enable_selected',
-              child: const Text('Enable selected rows'),
-            ),
-            PopupMenuItem(
-              enabled: hasSelection,
-              value: 'disable_selected',
-              child: const Text('Disable selected rows'),
-            ),
-            PopupMenuItem(
-              enabled: hasSelection && !widget.controller.autoTestRunning,
-              value: 'delete_selected',
-              child: const Text('Delete selected rows'),
-            ),
-            const PopupMenuDivider(),
-            PopupMenuItem(
-              enabled: hasSelection,
-              value: 'clear_selection',
-              child: const Text('Clear selection'),
             ),
           ],
     );

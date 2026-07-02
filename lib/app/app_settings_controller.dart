@@ -56,6 +56,12 @@ class AppSettingsController extends ChangeNotifier {
     await _repository.save(_settings);
   }
 
+  Future<void> setTerminalMode(String mode) async {
+    _settings = _settings.copyWith(terminalMode: mode);
+    notifyListeners();
+    await _repository.save(_settings);
+  }
+
   Future<void> dismissTerminalWarning() async {
     if (_settings.terminalWarningDismissed) {
       return;

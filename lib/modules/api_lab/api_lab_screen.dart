@@ -267,37 +267,75 @@ class _ApiLabScreenState extends State<ApiLabScreen> {
             ),
           ),
         Padding(
-          padding: const EdgeInsets.all(8),
+          padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),
           child: Row(
             children: [
-              Expanded(
-                child: SizedBox(
-                  height: 34,
-                  child: FilledButton.icon(
-                    onPressed:
-                        () => _createRequest(folderId: _selectedFolderId),
-                    icon: const Icon(Icons.add, size: 18),
-                    label: const Text('+ Request', maxLines: 1),
-                  ),
-                ),
+              Text(
+                'Requests',
+                style: Theme.of(
+                  context,
+                ).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w800),
               ),
-              const SizedBox(width: 8),
-              SizedBox(
-                height: 34,
-                child: OutlinedButton.icon(
-                  onPressed: _createFolder,
-                  icon: const Icon(Icons.folder_open, size: 18),
-                  label: const Text('Folder', maxLines: 1),
+              const Spacer(),
+              IconButton(
+                tooltip: 'New request',
+                style: IconButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
                 ),
+                onPressed: () => _createRequest(folderId: _selectedFolderId),
+                icon: const Icon(Icons.add, size: 18),
               ),
-              const SizedBox(width: 8),
-              SizedBox(
-                height: 34,
-                child: OutlinedButton.icon(
-                  onPressed: _runCollection,
-                  icon: const Icon(Icons.playlist_play, size: 18),
-                  label: Text(_runnerActive ? 'Stop' : 'Run all', maxLines: 1),
+              IconButton(
+                tooltip: 'New folder',
+                style: IconButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
                 ),
+                onPressed: _createFolder,
+                icon: const Icon(Icons.create_new_folder_outlined, size: 18),
+              ),
+              PopupMenuButton<String>(
+                tooltip: 'Collection actions',
+                icon: const Icon(Icons.more_horiz, size: 18),
+                onSelected: (value) {
+                  switch (value) {
+                    case 'run_all':
+                      _runCollection();
+                    case 'rename_collection':
+                      _renameCollection();
+                    case 'delete_collection':
+                      _deleteCollection();
+                    case 'import':
+                      _importDialog();
+                    case 'export':
+                      _exportDialog();
+                  }
+                },
+                itemBuilder:
+                    (context) => [
+                      PopupMenuItem(
+                        value: 'run_all',
+                        child: Text(_runnerActive ? 'Stop run' : 'Run all'),
+                      ),
+                      const PopupMenuDivider(),
+                      const PopupMenuItem(
+                        value: 'rename_collection',
+                        child: Text('Rename collection'),
+                      ),
+                      PopupMenuItem(
+                        enabled: _collections.length > 1,
+                        value: 'delete_collection',
+                        child: const Text('Delete collection'),
+                      ),
+                      const PopupMenuDivider(),
+                      const PopupMenuItem(
+                        value: 'import',
+                        child: Text('Import'),
+                      ),
+                      const PopupMenuItem(
+                        value: 'export',
+                        child: Text('Export'),
+                      ),
+                    ],
               ),
             ],
           ),
@@ -423,18 +461,19 @@ class _ApiLabScreenState extends State<ApiLabScreen> {
       return const Center(child: Text('Create or select a request.'));
     }
     return Padding(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _openTabs(),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           Row(
             children: [
               SizedBox(
-                width: 112,
+                width: 104,
                 child: DropdownButtonFormField<String>(
                   initialValue: _method,
+                  isDense: true,
                   items:
                       const ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD']
                           .map(
@@ -455,20 +494,29 @@ class _ApiLabScreenState extends State<ApiLabScreen> {
               Expanded(
                 child: TextField(
                   controller: _url,
-                  decoration: const InputDecoration(labelText: 'URL'),
+                  decoration: const InputDecoration(
+                    hintText: 'https://api.example.com/resource',
+                    labelText: 'URL',
+                  ),
                 ),
               ),
               const SizedBox(width: 8),
-              FilledButton.icon(
-                onPressed: _sending ? null : _sendSelectedRequest,
-                icon: const Icon(Icons.send, size: 18),
-                label: Text(_sending ? 'Sending' : 'Send'),
+              SizedBox(
+                height: 38,
+                child: FilledButton.icon(
+                  onPressed: _sending ? null : _sendSelectedRequest,
+                  icon: const Icon(Icons.send, size: 16),
+                  label: Text(_sending ? 'Sending' : 'Send'),
+                ),
               ),
               const SizedBox(width: 8),
-              OutlinedButton.icon(
-                onPressed: _saveRequest,
-                icon: const Icon(Icons.save, size: 18),
-                label: const Text('Save'),
+              SizedBox(
+                height: 38,
+                child: OutlinedButton.icon(
+                  onPressed: _saveRequest,
+                  icon: const Icon(Icons.save, size: 16),
+                  label: const Text('Save'),
+                ),
               ),
             ],
           ),
@@ -495,19 +543,27 @@ class _ApiLabScreenState extends State<ApiLabScreen> {
             ],
           ),
           const SizedBox(height: 8),
-          SegmentedButton<int>(
-            segments: const [
-              ButtonSegment(value: 0, label: Text('Params')),
-              ButtonSegment(value: 1, label: Text('Authorization')),
-              ButtonSegment(value: 2, label: Text('Headers')),
-              ButtonSegment(value: 3, label: Text('Body')),
-              ButtonSegment(value: 4, label: Text('Pre-request')),
-              ButtonSegment(value: 5, label: Text('Tests')),
-              ButtonSegment(value: 6, label: Text('Settings')),
-            ],
-            selected: {_requestTab},
-            onSelectionChanged:
-                (value) => setState(() => _requestTab = value.first),
+          SizedBox(
+            height: 36,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              children: [
+                SegmentedButton<int>(
+                  segments: const [
+                    ButtonSegment(value: 0, label: Text('Params')),
+                    ButtonSegment(value: 1, label: Text('Auth')),
+                    ButtonSegment(value: 2, label: Text('Headers')),
+                    ButtonSegment(value: 3, label: Text('Body')),
+                    ButtonSegment(value: 4, label: Text('Scripts')),
+                    ButtonSegment(value: 5, label: Text('Tests')),
+                    ButtonSegment(value: 6, label: Text('Settings')),
+                  ],
+                  selected: {_requestTab},
+                  onSelectionChanged:
+                      (value) => setState(() => _requestTab = value.first),
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 8),
           Expanded(
@@ -549,24 +605,33 @@ class _ApiLabScreenState extends State<ApiLabScreen> {
             case final request?)
           request,
     ];
-    return SizedBox(
-      height: 38,
+    return Container(
+      height: 36,
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: BorderSide(color: Theme.of(context).dividerColor),
+        ),
+      ),
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: openRequests.length,
-        separatorBuilder: (_, _) => const SizedBox(width: 6),
+        separatorBuilder: (_, _) => const SizedBox(width: 4),
         itemBuilder: (context, index) {
           final request = openRequests[index];
           final active = request.id == _selectedRequestId;
-          return InputChip(
-            selected: active,
-            avatar: _methodLabel(request.method),
-            label: Text(request.name, overflow: TextOverflow.ellipsis),
-            onPressed: () => _selectRequest(request.id),
-            onDeleted:
-                openRequests.length == 1
-                    ? null
-                    : () => _closeRequestTab(request.id),
+          return ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 220),
+            child: InputChip(
+              selected: active,
+              visualDensity: VisualDensity.compact,
+              avatar: _methodLabel(request.method),
+              label: Text(request.name, overflow: TextOverflow.ellipsis),
+              onPressed: () => _selectRequest(request.id),
+              onDeleted:
+                  openRequests.length == 1
+                      ? null
+                      : () => _closeRequestTab(request.id),
+            ),
           );
         },
       ),
@@ -577,21 +642,21 @@ class _ApiLabScreenState extends State<ApiLabScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
+        Row(
           children: [
-            OutlinedButton.icon(
+            Text('Headers', style: Theme.of(context).textTheme.titleSmall),
+            const Spacer(),
+            TextButton.icon(
               onPressed: () => _showHeaderTemplateMenu(request),
               icon: const Icon(Icons.article_outlined, size: 16),
               label: const Text('Templates'),
             ),
-            OutlinedButton.icon(
+            TextButton.icon(
               onPressed: () => _bulkEditHeaders(request),
               icon: const Icon(Icons.view_headline, size: 16),
               label: const Text('Bulk edit'),
             ),
-            OutlinedButton.icon(
+            TextButton.icon(
               onPressed: () => _copyRequestCurl(request),
               icon: const Icon(Icons.terminal, size: 16),
               label: const Text('Copy cURL'),
@@ -616,139 +681,10 @@ class _ApiLabScreenState extends State<ApiLabScreen> {
     List<ApiKeyValue> values,
     ValueChanged<List<ApiKeyValue>> onChanged,
   ) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Row(
-          children: [
-            Text(title, style: Theme.of(context).textTheme.titleSmall),
-            const Spacer(),
-            OutlinedButton.icon(
-              onPressed:
-                  () => onChanged([
-                    ...values,
-                    const ApiKeyValue(key: '', value: ''),
-                  ]),
-              icon: const Icon(Icons.add, size: 16),
-              label: const Text('Add'),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        Expanded(
-          child: ListView.builder(
-            itemCount: values.length + 1,
-            itemBuilder: (context, index) {
-              final isNewRow = index == values.length;
-              final item =
-                  isNewRow
-                      ? const ApiKeyValue(key: '', value: '', enabled: true)
-                      : values[index];
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 6),
-                child: Row(
-                  children: [
-                    Checkbox(
-                      value: item.enabled,
-                      onChanged:
-                          isNewRow
-                              ? null
-                              : (value) => onChanged(
-                                _replace(
-                                  values,
-                                  index,
-                                  item.copyWith(enabled: value ?? true),
-                                ),
-                              ),
-                    ),
-                    Expanded(
-                      child: TextFormField(
-                        initialValue: item.key,
-                        decoration: const InputDecoration(labelText: 'Key'),
-                        onChanged: (value) {
-                          if (isNewRow) {
-                            if (value.trim().isNotEmpty) {
-                              onChanged([...values, item.copyWith(key: value)]);
-                            }
-                            return;
-                          }
-                          onChanged(
-                            _replace(values, index, item.copyWith(key: value)),
-                          );
-                        },
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: TextFormField(
-                        initialValue: item.value,
-                        decoration: const InputDecoration(labelText: 'Value'),
-                        onChanged: (value) {
-                          if (isNewRow) {
-                            if (value.trim().isNotEmpty) {
-                              onChanged([
-                                ...values,
-                                item.copyWith(value: value),
-                              ]);
-                            }
-                            return;
-                          }
-                          onChanged(
-                            _replace(
-                              values,
-                              index,
-                              item.copyWith(value: value),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: TextFormField(
-                        initialValue: item.description,
-                        decoration: const InputDecoration(
-                          labelText: 'Description',
-                        ),
-                        onChanged:
-                            isNewRow
-                                ? null
-                                : (value) => onChanged(
-                                  _replace(
-                                    values,
-                                    index,
-                                    item.copyWith(description: value),
-                                  ),
-                                ),
-                      ),
-                    ),
-                    IconButton(
-                      tooltip: 'Duplicate row',
-                      onPressed:
-                          isNewRow
-                              ? null
-                              : () => onChanged([
-                                ...values.take(index + 1),
-                                item.copyWith(),
-                                ...values.skip(index + 1),
-                              ]),
-                      icon: const Icon(Icons.copy, size: 18),
-                    ),
-                    IconButton(
-                      tooltip: 'Delete row',
-                      onPressed:
-                          isNewRow
-                              ? null
-                              : () => onChanged(_removeAt(values, index)),
-                      icon: const Icon(Icons.close),
-                    ),
-                  ],
-                ),
-              );
-            },
-          ),
-        ),
-      ],
+    return _ApiKeyValueTable(
+      title: title,
+      values: values,
+      onChanged: onChanged,
     );
   }
 
@@ -2466,24 +2402,6 @@ class _ApiLabScreenState extends State<ApiLabScreen> {
     };
   }
 
-  List<ApiKeyValue> _replace(
-    List<ApiKeyValue> values,
-    int index,
-    ApiKeyValue value,
-  ) {
-    return [
-      for (var i = 0; i < values.length; i++)
-        if (i == index) value else values[i],
-    ];
-  }
-
-  List<ApiKeyValue> _removeAt(List<ApiKeyValue> values, int index) {
-    return [
-      for (var i = 0; i < values.length; i++)
-        if (i != index) values[i],
-    ];
-  }
-
   List<ApiKeyValue> _parseBulkKeyValues(String text) {
     return text
         .split(RegExp(r'\r?\n'))
@@ -2603,5 +2521,367 @@ class _ApiLabScreenState extends State<ApiLabScreen> {
       createdAt: DateTime.now(),
       updatedAt: DateTime.now(),
     );
+  }
+}
+
+class _ApiKeyValueTable extends StatefulWidget {
+  const _ApiKeyValueTable({
+    required this.title,
+    required this.values,
+    required this.onChanged,
+  });
+
+  final String title;
+  final List<ApiKeyValue> values;
+  final ValueChanged<List<ApiKeyValue>> onChanged;
+
+  @override
+  State<_ApiKeyValueTable> createState() => _ApiKeyValueTableState();
+}
+
+class _ApiKeyValueTableState extends State<_ApiKeyValueTable> {
+  final _drafts = <_ApiKeyValueDraft>[];
+  late _ApiKeyValueDraft _newRow;
+
+  @override
+  void initState() {
+    super.initState();
+    _syncDrafts(recreate: true);
+    _newRow = _ApiKeyValueDraft(const ApiKeyValue(key: '', value: ''));
+  }
+
+  @override
+  void didUpdateWidget(covariant _ApiKeyValueTable oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _syncDrafts(recreate: oldWidget.values.length != widget.values.length);
+  }
+
+  @override
+  void dispose() {
+    for (final draft in _drafts) {
+      draft.dispose();
+    }
+    _newRow.dispose();
+    super.dispose();
+  }
+
+  void _syncDrafts({required bool recreate}) {
+    if (recreate) {
+      for (final draft in _drafts) {
+        draft.dispose();
+      }
+      _drafts
+        ..clear()
+        ..addAll(widget.values.map(_ApiKeyValueDraft.new));
+      return;
+    }
+
+    for (var index = 0; index < widget.values.length; index++) {
+      if (index >= _drafts.length) {
+        _drafts.add(_ApiKeyValueDraft(widget.values[index]));
+      } else {
+        _drafts[index].sync(widget.values[index]);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final compact = MediaQuery.sizeOf(context).width < 1180;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            Text(widget.title, style: Theme.of(context).textTheme.titleSmall),
+            const Spacer(),
+            TextButton.icon(
+              onPressed:
+                  () => widget.onChanged([
+                    ...widget.values,
+                    const ApiKeyValue(key: '', value: ''),
+                  ]),
+              icon: const Icon(Icons.add, size: 16),
+              label: const Text('Add row'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        Expanded(
+          child: ListView.builder(
+            itemCount: widget.values.length + 1,
+            itemBuilder: (context, index) {
+              final isNewRow = index == widget.values.length;
+              final item =
+                  isNewRow
+                      ? const ApiKeyValue(key: '', value: '', enabled: true)
+                      : widget.values[index];
+              final draft = isNewRow ? _newRow : _drafts[index];
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 5),
+                child:
+                    compact
+                        ? _compactRow(index, item, draft, isNewRow)
+                        : _wideRow(index, item, draft, isNewRow),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _wideRow(
+    int index,
+    ApiKeyValue item,
+    _ApiKeyValueDraft draft,
+    bool isNewRow,
+  ) {
+    return Row(
+      children: [
+        Checkbox(
+          value: item.enabled,
+          onChanged: isNewRow ? null : (value) => _setEnabled(index, value),
+        ),
+        Expanded(
+          child: _cell(
+            draft.key,
+            draft.keyFocus,
+            'Key',
+            () => _commitKey(index),
+          ),
+        ),
+        const SizedBox(width: 6),
+        Expanded(
+          child: _cell(
+            draft.value,
+            draft.valueFocus,
+            'Value',
+            () => _commitValue(index),
+          ),
+        ),
+        const SizedBox(width: 6),
+        Expanded(
+          child: _cell(
+            draft.description,
+            draft.descriptionFocus,
+            'Description',
+            isNewRow ? null : () => _commitDescription(index),
+          ),
+        ),
+        _rowActions(index, item, isNewRow),
+      ],
+    );
+  }
+
+  Widget _compactRow(
+    int index,
+    ApiKeyValue item,
+    _ApiKeyValueDraft draft,
+    bool isNewRow,
+  ) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        border: Border.all(color: Theme.of(context).dividerColor),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(6),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                Checkbox(
+                  value: item.enabled,
+                  onChanged:
+                      isNewRow ? null : (value) => _setEnabled(index, value),
+                ),
+                Expanded(
+                  child: _cell(
+                    draft.key,
+                    draft.keyFocus,
+                    'Key',
+                    () => _commitKey(index),
+                  ),
+                ),
+                _rowActions(index, item, isNewRow),
+              ],
+            ),
+            const SizedBox(height: 5),
+            _cell(
+              draft.value,
+              draft.valueFocus,
+              'Value',
+              () => _commitValue(index),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _cell(
+    TextEditingController controller,
+    FocusNode focusNode,
+    String label,
+    VoidCallback? onChanged,
+  ) {
+    return TextField(
+      controller: controller,
+      focusNode: focusNode,
+      onChanged: (_) => onChanged?.call(),
+      decoration: InputDecoration(labelText: label),
+    );
+  }
+
+  Widget _rowActions(int index, ApiKeyValue item, bool isNewRow) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        IconButton(
+          tooltip: 'Duplicate row',
+          onPressed:
+              isNewRow
+                  ? null
+                  : () => widget.onChanged([
+                    ...widget.values.take(index + 1),
+                    item.copyWith(),
+                    ...widget.values.skip(index + 1),
+                  ]),
+          icon: const Icon(Icons.copy, size: 18),
+        ),
+        IconButton(
+          tooltip: 'Delete row',
+          onPressed:
+              isNewRow
+                  ? null
+                  : () => widget.onChanged(_apiRemoveAt(widget.values, index)),
+          icon: const Icon(Icons.close, size: 18),
+        ),
+      ],
+    );
+  }
+
+  void _setEnabled(int index, bool? value) {
+    final item = widget.values[index];
+    widget.onChanged(
+      _apiReplace(widget.values, index, item.copyWith(enabled: value ?? true)),
+    );
+  }
+
+  void _commitKey(int index) {
+    if (index == widget.values.length) {
+      _commitNewRow();
+      return;
+    }
+    final item = widget.values[index];
+    widget.onChanged(
+      _apiReplace(
+        widget.values,
+        index,
+        item.copyWith(key: _drafts[index].key.text),
+      ),
+    );
+  }
+
+  void _commitValue(int index) {
+    if (index == widget.values.length) {
+      _commitNewRow();
+      return;
+    }
+    final item = widget.values[index];
+    widget.onChanged(
+      _apiReplace(
+        widget.values,
+        index,
+        item.copyWith(value: _drafts[index].value.text),
+      ),
+    );
+  }
+
+  void _commitDescription(int index) {
+    final item = widget.values[index];
+    widget.onChanged(
+      _apiReplace(
+        widget.values,
+        index,
+        item.copyWith(description: _drafts[index].description.text),
+      ),
+    );
+  }
+
+  void _commitNewRow() {
+    final key = _newRow.key.text;
+    final value = _newRow.value.text;
+    if (key.trim().isEmpty && value.trim().isEmpty) return;
+    widget.onChanged([
+      ...widget.values,
+      ApiKeyValue(key: key, value: value, enabled: true),
+    ]);
+    _newRow.clear();
+  }
+}
+
+List<ApiKeyValue> _apiReplace(
+  List<ApiKeyValue> values,
+  int index,
+  ApiKeyValue value,
+) {
+  return [
+    for (var i = 0; i < values.length; i++)
+      if (i == index) value else values[i],
+  ];
+}
+
+List<ApiKeyValue> _apiRemoveAt(List<ApiKeyValue> values, int index) {
+  return [
+    for (var i = 0; i < values.length; i++)
+      if (i != index) values[i],
+  ];
+}
+
+class _ApiKeyValueDraft {
+  _ApiKeyValueDraft(ApiKeyValue item)
+    : key = TextEditingController(text: item.key),
+      value = TextEditingController(text: item.value),
+      description = TextEditingController(text: item.description),
+      keyFocus = FocusNode(),
+      valueFocus = FocusNode(),
+      descriptionFocus = FocusNode();
+
+  final TextEditingController key;
+  final TextEditingController value;
+  final TextEditingController description;
+  final FocusNode keyFocus;
+  final FocusNode valueFocus;
+  final FocusNode descriptionFocus;
+
+  void sync(ApiKeyValue item) {
+    _syncController(key, keyFocus, item.key);
+    _syncController(value, valueFocus, item.value);
+    _syncController(description, descriptionFocus, item.description);
+  }
+
+  void clear() {
+    key.clear();
+    value.clear();
+    description.clear();
+  }
+
+  void dispose() {
+    key.dispose();
+    value.dispose();
+    description.dispose();
+    keyFocus.dispose();
+    valueFocus.dispose();
+    descriptionFocus.dispose();
+  }
+
+  void _syncController(
+    TextEditingController controller,
+    FocusNode focusNode,
+    String text,
+  ) {
+    if (focusNode.hasFocus || controller.text == text) return;
+    controller.text = text;
   }
 }

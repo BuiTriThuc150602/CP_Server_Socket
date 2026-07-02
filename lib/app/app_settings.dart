@@ -5,6 +5,7 @@ class AppSettings {
     required this.themeMode,
     required this.localeCode,
     required this.terminalShellId,
+    required this.terminalMode,
     required this.terminalShellCommand,
     required this.terminalShellLaunchMode,
     required this.terminalWarningDismissed,
@@ -15,6 +16,7 @@ class AppSettings {
       themeMode: ThemeMode.system,
       localeCode: 'system',
       terminalShellId: '',
+      terminalMode: 'pty',
       terminalShellCommand: '',
       terminalShellLaunchMode: '',
       terminalWarningDismissed: false,
@@ -26,6 +28,7 @@ class AppSettings {
       themeMode: _themeModeFromName(json['themeMode']),
       localeCode: _localeCode(json['localeCode']),
       terminalShellId: (json['terminalShellId'] ?? '').toString(),
+      terminalMode: _terminalMode(json['terminalMode']),
       terminalShellCommand: (json['terminalShellCommand'] ?? '').toString(),
       terminalShellLaunchMode:
           (json['terminalShellLaunchMode'] ?? '').toString(),
@@ -36,6 +39,7 @@ class AppSettings {
   final ThemeMode themeMode;
   final String localeCode;
   final String terminalShellId;
+  final String terminalMode;
   final String terminalShellCommand;
   final String terminalShellLaunchMode;
   final bool terminalWarningDismissed;
@@ -53,6 +57,7 @@ class AppSettings {
       'themeMode': themeMode.name,
       'localeCode': localeCode,
       'terminalShellId': terminalShellId,
+      'terminalMode': terminalMode,
       'terminalShellCommand': terminalShellCommand,
       'terminalShellLaunchMode': terminalShellLaunchMode,
       'terminalWarningDismissed': terminalWarningDismissed,
@@ -63,6 +68,7 @@ class AppSettings {
     ThemeMode? themeMode,
     String? localeCode,
     String? terminalShellId,
+    String? terminalMode,
     String? terminalShellCommand,
     String? terminalShellLaunchMode,
     bool? terminalWarningDismissed,
@@ -71,6 +77,7 @@ class AppSettings {
       themeMode: themeMode ?? this.themeMode,
       localeCode: localeCode ?? this.localeCode,
       terminalShellId: terminalShellId ?? this.terminalShellId,
+      terminalMode: terminalMode ?? this.terminalMode,
       terminalShellCommand: terminalShellCommand ?? this.terminalShellCommand,
       terminalShellLaunchMode:
           terminalShellLaunchMode ?? this.terminalShellLaunchMode,
@@ -92,6 +99,13 @@ class AppSettings {
       'en' => 'en',
       'vi' => 'vi',
       _ => 'system',
+    };
+  }
+
+  static String _terminalMode(Object? value) {
+    return switch (value?.toString()) {
+      'runner' => 'runner',
+      _ => 'pty',
     };
   }
 }
