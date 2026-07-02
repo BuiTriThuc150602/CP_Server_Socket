@@ -12,7 +12,12 @@ import 'package:socket_server/modules/carparking/services/carparking_scenario_ru
 enum ConsoleEntryKind { incoming, outgoing, error, info }
 
 class ConsoleEntry {
-  const ConsoleEntry({required this.kind, required this.text, required this.timestamp, this.sessionId});
+  const ConsoleEntry({
+    required this.kind,
+    required this.text,
+    required this.timestamp,
+    this.sessionId,
+  });
 
   final ConsoleEntryKind kind;
   final String text;
@@ -37,12 +42,17 @@ class ConsoleEntry {
 }
 
 class CarParkingController extends ChangeNotifier {
-  CarParkingController({CarParkingRepository? repository, TcpServerEngine? engine, CarParkingPayloadFactory? payloadFactory, CarParkingScenarioRunner? scenarioRunner, LoggerService? logger})
-    : _repository = repository ?? CarParkingRepository(),
-      _engine = engine ?? TcpServerEngine(),
-      _payloadFactory = payloadFactory ?? const CarParkingPayloadFactory(),
-      _scenarioRunner = scenarioRunner ?? CarParkingScenarioRunner(),
-      _logger = logger ?? LoggerService.instance;
+  CarParkingController({
+    CarParkingRepository? repository,
+    TcpServerEngine? engine,
+    CarParkingPayloadFactory? payloadFactory,
+    CarParkingScenarioRunner? scenarioRunner,
+    LoggerService? logger,
+  }) : _repository = repository ?? CarParkingRepository(),
+       _engine = engine ?? TcpServerEngine(),
+       _payloadFactory = payloadFactory ?? const CarParkingPayloadFactory(),
+       _scenarioRunner = scenarioRunner ?? CarParkingScenarioRunner(),
+       _logger = logger ?? LoggerService.instance;
 
   final CarParkingRepository _repository;
   final TcpServerEngine _engine;
@@ -79,7 +89,8 @@ class CarParkingController extends ChangeNotifier {
   String? get warning => _warning;
   String? get serverError => _serverError;
   bool get prettyConsole => _prettyConsole;
-  bool get autoTestRunning => _runnerSnapshot.status != ScenarioRunnerStatus.stopped;
+  bool get autoTestRunning =>
+      _runnerSnapshot.status != ScenarioRunnerStatus.stopped;
 
   Future<void> initialize() async {
     if (_initialized || _loading) {
@@ -101,14 +112,34 @@ class CarParkingController extends ChangeNotifier {
         notifyListeners();
       }),
       _engine.incomingMessages.listen((message) {
-        _addConsole(ConsoleEntry(kind: ConsoleEntryKind.incoming, text: message.text, timestamp: message.timestamp, sessionId: message.sessionId));
+        _addConsole(
+          ConsoleEntry(
+            kind: ConsoleEntryKind.incoming,
+            text: message.text,
+            timestamp: message.timestamp,
+            sessionId: message.sessionId,
+          ),
+        );
       }),
       _engine.outgoingMessages.listen((message) {
-        _addConsole(ConsoleEntry(kind: ConsoleEntryKind.outgoing, text: message.text, timestamp: message.timestamp, sessionId: message.sessionId));
+        _addConsole(
+          ConsoleEntry(
+            kind: ConsoleEntryKind.outgoing,
+            text: message.text,
+            timestamp: message.timestamp,
+            sessionId: message.sessionId,
+          ),
+        );
       }),
       _engine.errors.listen((error) {
         _serverError = error.toString();
-        _addConsole(ConsoleEntry(kind: ConsoleEntryKind.error, text: error.toString(), timestamp: DateTime.now()));
+        _addConsole(
+          ConsoleEntry(
+            kind: ConsoleEntryKind.error,
+            text: error.toString(),
+            timestamp: DateTime.now(),
+          ),
+        );
       }),
       _scenarioRunner.snapshots.listen((snapshot) {
         _runnerSnapshot = snapshot;
@@ -131,7 +162,8 @@ class CarParkingController extends ChangeNotifier {
     try {
       await _engine.start(host: server.bindHost, port: server.port);
     } catch (error) {
-      _serverError = 'Could not start ${server.bindHost}:${server.port}: $error';
+      _serverError =
+          'Could not start ${server.bindHost}:${server.port}: $error';
       notifyListeners();
     }
   }
@@ -143,7 +175,8 @@ class CarParkingController extends ChangeNotifier {
     try {
       await _engine.restart(host: server.bindHost, port: server.port);
     } catch (error) {
-      _serverError = 'Could not restart ${server.bindHost}:${server.port}: $error';
+      _serverError =
+          'Could not restart ${server.bindHost}:${server.port}: $error';
       notifyListeners();
     }
   }
@@ -155,14 +188,19 @@ class CarParkingController extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> applyServerAndRestart(CarParkingServerProfile serverProfile) async {
+  Future<void> applyServerAndRestart(
+    CarParkingServerProfile serverProfile,
+  ) async {
     updateServer(serverProfile);
     await _repository.save(_workspace);
     await restartServer();
   }
 
   void addDevice() {
-    final device = CarParkingDeviceProfile.defaults().copyWith(id: newCarParkingId('device'), label: 'Device ${devices.length + 1}');
+    final device = CarParkingDeviceProfile.defaults().copyWith(
+      id: newCarParkingId('device'),
+      label: 'Device ${devices.length + 1}',
+    );
     addDeviceProfile(device);
   }
 
@@ -173,7 +211,10 @@ class CarParkingController extends ChangeNotifier {
   }
 
   void duplicateDevice(CarParkingDeviceProfile source) {
-    final copy = source.copyWith(id: newCarParkingId('device'), label: '${source.label} Copy');
+    final copy = source.copyWith(
+      id: newCarParkingId('device'),
+      label: '${source.label} Copy',
+    );
     _workspace = _workspace.copyWith(devices: [...devices, copy]);
     _scheduleSave();
     notifyListeners();
@@ -187,7 +228,20 @@ class CarParkingController extends ChangeNotifier {
     }
     final remaining = devices.where((device) => device.id != id).toList();
     final fallbackId = remaining.first.id;
-    _workspace = _workspace.copyWith(devices: remaining, defaultDeviceProfileId: _workspace.defaultDeviceProfileId == id ? fallbackId : null, rows: rows.map((row) => row.deviceProfileId == id ? row.copyWith(deviceProfileId: fallbackId) : row).toList());
+    _workspace = _workspace.copyWith(
+      devices: remaining,
+      defaultDeviceProfileId:
+          _workspace.defaultDeviceProfileId == id ? fallbackId : null,
+      rows:
+          rows
+              .map(
+                (row) =>
+                    row.deviceProfileId == id
+                        ? row.copyWith(deviceProfileId: fallbackId)
+                        : row,
+              )
+              .toList(),
+    );
     _scheduleSave();
     notifyListeners();
   }
@@ -210,13 +264,31 @@ class CarParkingController extends ChangeNotifier {
   }
 
   void addCardRow() {
-    _workspace = _workspace.copyWith(rows: [...rows, CarParkingSignalRow.card(deviceProfileId: _workspace.defaultDeviceProfileId, label: 'Card ${rows.where((row) => row.type == CarParkingSignalType.card).length + 1}')]);
+    _workspace = _workspace.copyWith(
+      rows: [
+        ...rows,
+        CarParkingSignalRow.card(
+          deviceProfileId: _workspace.defaultDeviceProfileId,
+          label:
+              'Card ${rows.where((row) => row.type == CarParkingSignalType.card).length + 1}',
+        ),
+      ],
+    );
     _scheduleSave();
     notifyListeners();
   }
 
   void addIoRow() {
-    _workspace = _workspace.copyWith(rows: [...rows, CarParkingSignalRow.io(deviceProfileId: _workspace.defaultDeviceProfileId, label: 'IO ${rows.where((row) => row.type == CarParkingSignalType.io).length + 1}')]);
+    _workspace = _workspace.copyWith(
+      rows: [
+        ...rows,
+        CarParkingSignalRow.io(
+          deviceProfileId: _workspace.defaultDeviceProfileId,
+          label:
+              'IO ${rows.where((row) => row.type == CarParkingSignalType.io).length + 1}',
+        ),
+      ],
+    );
     _scheduleSave();
     notifyListeners();
   }
@@ -233,23 +305,37 @@ class CarParkingController extends ChangeNotifier {
   }
 
   void duplicateRow(CarParkingSignalRow row) {
-    _workspace = _workspace.copyWith(rows: [...rows, row.copyWith(id: newCarParkingId('row'), label: '${row.label} Copy')]);
+    _workspace = _workspace.copyWith(
+      rows: [
+        ...rows,
+        row.copyWith(id: newCarParkingId('row'), label: '${row.label} Copy'),
+      ],
+    );
     _scheduleSave();
     notifyListeners();
   }
 
   void deleteRow(String id) {
-    _workspace = _workspace.copyWith(rows: rows.where((row) => row.id != id).toList());
+    _workspace = _workspace.copyWith(
+      rows: rows.where((row) => row.id != id).toList(),
+    );
     _scheduleSave();
     notifyListeners();
   }
 
   String exportRowsJson() {
-    return const JsonEncoder.withIndent('  ').convert(rows.map((row) => row.toJson()).toList());
+    return const JsonEncoder.withIndent(
+      '  ',
+    ).convert(rows.map((row) => row.toJson()).toList());
   }
 
   String exportSelectedRowsJson(Set<String> rowIds) {
-    return const JsonEncoder.withIndent('  ').convert(rows.where((row) => rowIds.contains(row.id)).map((row) => row.toJson()).toList());
+    return const JsonEncoder.withIndent('  ').convert(
+      rows
+          .where((row) => rowIds.contains(row.id))
+          .map((row) => row.toJson())
+          .toList(),
+    );
   }
 
   void importRowsJson(String text) {
@@ -258,8 +344,25 @@ class CarParkingController extends ChangeNotifier {
       throw const FormatException('Expected a JSON array of rows.');
     }
     final imported =
-        decoded.whereType<Map>().map((item) => CarParkingSignalRow.fromJson(Map<String, dynamic>.from(item))).map((row) => row.deviceProfileId.isEmpty ? row.copyWith(deviceProfileId: _workspace.defaultDeviceProfileId) : row).map((row) => row.copyWith(id: newCarParkingId('row'))).toList();
-    _workspace = _workspace.copyWith(rows: normalizeCarParkingSignalRowIds([...rows, ...imported]));
+        decoded
+            .whereType<Map>()
+            .map(
+              (item) =>
+                  CarParkingSignalRow.fromJson(Map<String, dynamic>.from(item)),
+            )
+            .map(
+              (row) =>
+                  row.deviceProfileId.isEmpty
+                      ? row.copyWith(
+                        deviceProfileId: _workspace.defaultDeviceProfileId,
+                      )
+                      : row,
+            )
+            .map((row) => row.copyWith(id: newCarParkingId('row')))
+            .toList();
+    _workspace = _workspace.copyWith(
+      rows: normalizeCarParkingSignalRowIds([...rows, ...imported]),
+    );
     _scheduleSave();
     notifyListeners();
   }
@@ -269,7 +372,13 @@ class CarParkingController extends ChangeNotifier {
     if (selected.isEmpty) {
       return;
     }
-    _workspace = _workspace.copyWith(rows: [...rows, for (final row in selected) row.copyWith(id: newCarParkingId('row'), label: '${row.label} Copy')]);
+    _workspace = _workspace.copyWith(
+      rows: [
+        ...rows,
+        for (final row in selected)
+          row.copyWith(id: newCarParkingId('row'), label: '${row.label} Copy'),
+      ],
+    );
     _scheduleSave();
     notifyListeners();
   }
@@ -279,7 +388,9 @@ class CarParkingController extends ChangeNotifier {
     if (ids.isEmpty) {
       return;
     }
-    _workspace = _workspace.copyWith(rows: rows.where((row) => !ids.contains(row.id)).toList());
+    _workspace = _workspace.copyWith(
+      rows: rows.where((row) => !ids.contains(row.id)).toList(),
+    );
     _scheduleSave();
     notifyListeners();
   }
@@ -301,7 +412,9 @@ class CarParkingController extends ChangeNotifier {
 
   Future<void> sendRowsOnce(Iterable<String> rowIds) async {
     final ids = rowIds.toSet();
-    for (final row in rows.where((row) => ids.contains(row.id) && row.enabled)) {
+    for (final row in rows.where(
+      (row) => ids.contains(row.id) && row.enabled,
+    )) {
       await sendRow(row);
     }
   }
@@ -309,16 +422,36 @@ class CarParkingController extends ChangeNotifier {
   Future<void> sendRow(CarParkingSignalRow row) async {
     final device = _deviceForRow(row);
     if (device == null || device.deviceId.isEmpty) {
-      _warning = 'Configure a device profile before sending CarParking payloads.';
-      _addConsole(ConsoleEntry(kind: ConsoleEntryKind.error, text: _warning!, timestamp: DateTime.now()));
+      _warning =
+          'Configure a device profile before sending CarParking payloads.';
+      _addConsole(
+        ConsoleEntry(
+          kind: ConsoleEntryKind.error,
+          text: _warning!,
+          timestamp: DateTime.now(),
+        ),
+      );
       return;
     }
 
-    final payload = row.type == CarParkingSignalType.card ? _payloadFactory.cardLog(device: device, row: row) : _payloadFactory.ioStatus(device: device, row: row);
+    final payload =
+        row.type == CarParkingSignalType.card
+            ? _payloadFactory.cardLog(device: device, row: row)
+            : _payloadFactory.ioStatus(device: device, row: row);
     if (_clients.isEmpty) {
-      _addConsole(ConsoleEntry(kind: ConsoleEntryKind.info, text: 'No TCP clients connected. Payload generated but not delivered.', timestamp: DateTime.now()));
+      _addConsole(
+        ConsoleEntry(
+          kind: ConsoleEntryKind.info,
+          text:
+              'No TCP clients connected. Payload generated but not delivered.',
+          timestamp: DateTime.now(),
+        ),
+      );
     }
-    await _engine.sendToAll(_payloadFactory.encodeLine(payload), appendNewline: true);
+    await _engine.sendToAll(
+      _payloadFactory.encodeLine(payload),
+      appendNewline: true,
+    );
     _warning = null;
     notifyListeners();
   }
@@ -326,9 +459,14 @@ class CarParkingController extends ChangeNotifier {
   String previewPayloadForRow(CarParkingSignalRow row) {
     final device = _deviceForRow(row) ?? _defaultEnabledDevice();
     if (device == null) {
-      return const JsonEncoder.withIndent('  ').convert({'error': 'No device profile configured'});
+      return const JsonEncoder.withIndent(
+        '  ',
+      ).convert({'error': 'No device profile configured'});
     }
-    final payload = row.type == CarParkingSignalType.card ? _payloadFactory.cardLog(device: device, row: row) : _payloadFactory.ioStatus(device: device, row: row);
+    final payload =
+        row.type == CarParkingSignalType.card
+            ? _payloadFactory.cardLog(device: device, row: row)
+            : _payloadFactory.ioStatus(device: device, row: row);
     return const JsonEncoder.withIndent('  ').convert(payload);
   }
 
@@ -340,13 +478,26 @@ class CarParkingController extends ChangeNotifier {
       return;
     }
     _warning = null;
-    await _engine.sendToAll(_payloadFactory.encodeLine(_payloadFactory.connectStatus(device)), appendNewline: true);
+    await _engine.sendToAll(
+      _payloadFactory.encodeLine(_payloadFactory.connectStatus(device)),
+      appendNewline: true,
+    );
   }
 
   Future<void> startScenario({List<String>? selectedRowIds}) async {
-    final scenario = _workspace.scenarios.isEmpty ? CarParkingScenario.defaults() : _workspace.scenarios.first;
-    final selected = selectedRowIds == null || selectedRowIds.isEmpty ? rows : rows.where((row) => selectedRowIds.contains(row.id)).toList();
-    await _scenarioRunner.start(rows: selected, scenario: scenario, sender: sendRow);
+    final scenario =
+        _workspace.scenarios.isEmpty
+            ? CarParkingScenario.defaults()
+            : _workspace.scenarios.first;
+    final selected =
+        selectedRowIds == null || selectedRowIds.isEmpty
+            ? rows
+            : rows.where((row) => selectedRowIds.contains(row.id)).toList();
+    await _scenarioRunner.start(
+      rows: selected,
+      scenario: scenario,
+      sender: sendRow,
+    );
   }
 
   void pauseScenario() => _scenarioRunner.pause();
@@ -356,7 +507,10 @@ class CarParkingController extends ChangeNotifier {
   void stopScenario() => _scenarioRunner.stop();
 
   void updateScenario(CarParkingScenario scenario) {
-    final scenarios = _workspace.scenarios.isEmpty ? [scenario] : [scenario, ..._workspace.scenarios.skip(1)];
+    final scenarios =
+        _workspace.scenarios.isEmpty
+            ? [scenario]
+            : [scenario, ..._workspace.scenarios.skip(1)];
     _workspace = _workspace.copyWith(scenarios: scenarios);
     _scheduleSave();
     notifyListeners();
@@ -391,11 +545,16 @@ class CarParkingController extends ChangeNotifier {
   }
 
   CarParkingDeviceProfile? _deviceForRow(CarParkingSignalRow row) {
-    return devices.where((device) => device.id == row.deviceProfileId).firstOrNull;
+    return devices
+        .where((device) => device.id == row.deviceProfileId)
+        .firstOrNull;
   }
 
   CarParkingDeviceProfile? _defaultEnabledDevice() {
-    return devices.where((device) => device.id == _workspace.defaultDeviceProfileId).firstOrNull ?? devices.where((device) => device.enabled).firstOrNull;
+    return devices
+            .where((device) => device.id == _workspace.defaultDeviceProfileId)
+            .firstOrNull ??
+        devices.where((device) => device.enabled).firstOrNull;
   }
 
   void _configureHeartbeat() {
@@ -403,7 +562,10 @@ class CarParkingController extends ChangeNotifier {
     if (!server.heartbeatEnabled) {
       return;
     }
-    _heartbeatTimer = Timer.periodic(Duration(seconds: server.heartbeatIntervalSeconds), (_) => unawaited(sendHeartbeat()));
+    _heartbeatTimer = Timer.periodic(
+      Duration(seconds: server.heartbeatIntervalSeconds),
+      (_) => unawaited(sendHeartbeat()),
+    );
   }
 
   void _scheduleSave() {
@@ -433,11 +595,17 @@ class CarParkingController extends ChangeNotifier {
     }
     // The TCP engine reports runtime errors through its stream and also throws
     // to callers. This tiny window removes only that callback-path duplicate.
-    return entry.kind == last.kind && entry.sessionId == last.sessionId && entry.text == last.text && entry.timestamp.difference(last.timestamp).abs() <= const Duration(milliseconds: 300);
+    return entry.kind == last.kind &&
+        entry.sessionId == last.sessionId &&
+        entry.text == last.text &&
+        entry.timestamp.difference(last.timestamp).abs() <=
+            const Duration(milliseconds: 300);
   }
 
   CarParkingWorkspace _withUniqueRowIds(CarParkingWorkspace workspace) {
-    return workspace.copyWith(rows: normalizeCarParkingSignalRowIds(workspace.rows));
+    return workspace.copyWith(
+      rows: normalizeCarParkingSignalRowIds(workspace.rows),
+    );
   }
 }
 

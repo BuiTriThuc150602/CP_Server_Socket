@@ -12,7 +12,10 @@ class CarParkingModuleScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(create: (_) => CarParkingController()..initialize(), child: const _CarParkingModuleBody());
+    return ChangeNotifierProvider(
+      create: (_) => CarParkingController()..initialize(),
+      child: const _CarParkingModuleBody(),
+    );
   }
 }
 
@@ -36,12 +39,29 @@ class _CarParkingModuleBodyState extends State<_CarParkingModuleBody> {
     return Column(
       children: [
         CarParkingServerToolbar(controller: controller),
-        if (controller.warning != null) _Banner(text: controller.warning!, color: Colors.amber),
-        if (controller.serverError != null) _Banner(text: controller.serverError!, color: Colors.red),
+        if (controller.warning != null)
+          _Banner(text: controller.warning!, color: Colors.amber),
+        if (controller.serverError != null)
+          _Banner(text: controller.serverError!, color: Colors.red),
         // Compact device summary under the server bar
         CarParkingDeviceSummary(controller: controller),
         Expanded(
-          child: Column(children: [CarParkingScenarioToolbar(controller: controller, selectedRows: _selectedRows), Expanded(child: CarParkingSignalList(controller: controller, selectedRows: _selectedRows, onSelectionChanged: () => setState(() {}))), CarParkingConsolePanel(controller: controller)]),
+          child: Column(
+            children: [
+              CarParkingScenarioToolbar(
+                controller: controller,
+                selectedRows: _selectedRows,
+              ),
+              Expanded(
+                child: CarParkingSignalList(
+                  controller: controller,
+                  selectedRows: _selectedRows,
+                  onSelectionChanged: () => setState(() {}),
+                ),
+              ),
+              CarParkingConsolePanel(controller: controller),
+            ],
+          ),
         ),
       ],
     );
@@ -60,7 +80,13 @@ class _Banner extends StatelessWidget {
       width: double.infinity,
       color: color.withValues(alpha: 0.18),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      child: Row(children: [Icon(Icons.warning_amber, color: color.shade700, size: 16), const SizedBox(width: 8), Expanded(child: Text(text, style: const TextStyle(fontSize: 12)))]),
+      child: Row(
+        children: [
+          Icon(Icons.warning_amber, color: color.shade700, size: 16),
+          const SizedBox(width: 8),
+          Expanded(child: Text(text, style: const TextStyle(fontSize: 12))),
+        ],
+      ),
     );
   }
 }

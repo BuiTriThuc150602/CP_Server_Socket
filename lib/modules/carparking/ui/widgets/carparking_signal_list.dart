@@ -7,7 +7,12 @@ import 'package:socket_server/modules/carparking/ui/widgets/carparking_signal_ca
 enum SignalDensity { compact, comfortable, advanced }
 
 class CarParkingSignalList extends StatefulWidget {
-  const CarParkingSignalList({super.key, required this.controller, required this.selectedRows, required this.onSelectionChanged});
+  const CarParkingSignalList({
+    super.key,
+    required this.controller,
+    required this.selectedRows,
+    required this.onSelectionChanged,
+  });
 
   final CarParkingController controller;
   final Set<String> selectedRows;
@@ -30,7 +35,8 @@ class _CarParkingSignalListState extends State<CarParkingSignalList> {
     super.dispose();
   }
 
-  List<CarParkingSignalRow> get _filteredRows => widget.controller.rows.where(_matches).toList();
+  List<CarParkingSignalRow> get _filteredRows =>
+      widget.controller.rows.where(_matches).toList();
 
   bool get _allSelected {
     final rows = _filteredRows;
@@ -62,7 +68,8 @@ class _CarParkingSignalListState extends State<CarParkingSignalList> {
   @override
   Widget build(BuildContext context) {
     final rows = _filteredRows;
-    final selectedRows = rows.where((row) => widget.selectedRows.contains(row.id)).toList();
+    final selectedRows =
+        rows.where((row) => widget.selectedRows.contains(row.id)).toList();
     return Column(
       children: [
         Padding(
@@ -70,37 +77,143 @@ class _CarParkingSignalListState extends State<CarParkingSignalList> {
           child: Row(
             children: [
               // Select All checkbox
-              Tooltip(message: _allSelected ? 'Deselect all' : 'Select all', child: Checkbox(tristate: true, value: _allSelected ? true : (_someSelected ? null : false), onChanged: (_) => _toggleSelectAll())),
+              Tooltip(
+                message: _allSelected ? 'Deselect all' : 'Select all',
+                child: Checkbox(
+                  tristate: true,
+                  value: _allSelected ? true : (_someSelected ? null : false),
+                  onChanged: (_) => _toggleSelectAll(),
+                ),
+              ),
               // Search field – takes remaining space
-              Expanded(child: TextField(controller: _search, decoration: const InputDecoration(prefixIcon: Icon(Icons.search, size: 18), hintText: 'Search rows…', isDense: true, contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8)), onChanged: (_) => setState(() {}))),
+              Expanded(
+                child: TextField(
+                  controller: _search,
+                  decoration: const InputDecoration(
+                    prefixIcon: Icon(Icons.search, size: 18),
+                    hintText: 'Search rows…',
+                    isDense: true,
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 8,
+                    ),
+                  ),
+                  onChanged: (_) => setState(() {}),
+                ),
+              ),
               const SizedBox(width: 8),
               if (widget.selectedRows.isNotEmpty) ...[
-                Chip(label: Text('${widget.selectedRows.length} selected'), visualDensity: VisualDensity.compact),
-                IconButton(tooltip: 'Clear selection', onPressed: _clearSelection, icon: const Icon(Icons.close, size: 18)),
-                IconButton(tooltip: 'Send selected enabled rows once', onPressed: selectedRows.isEmpty ? null : () => _sendSelectedOnce(selectedRows), icon: const Icon(Icons.send, size: 18)),
-                IconButton(tooltip: 'Run selected in Auto Test', onPressed: selectedRows.isEmpty || widget.controller.autoTestRunning ? null : () => widget.controller.startScenario(selectedRowIds: selectedRows.map((row) => row.id).toList()), icon: const Icon(Icons.playlist_play, size: 20)),
+                Chip(
+                  label: Text('${widget.selectedRows.length} selected'),
+                  visualDensity: VisualDensity.compact,
+                ),
+                IconButton(
+                  tooltip: 'Clear selection',
+                  onPressed: _clearSelection,
+                  icon: const Icon(Icons.close, size: 18),
+                ),
+                IconButton(
+                  tooltip: 'Send selected enabled rows once',
+                  onPressed:
+                      selectedRows.isEmpty
+                          ? null
+                          : () => _sendSelectedOnce(selectedRows),
+                  icon: const Icon(Icons.send, size: 18),
+                ),
+                IconButton(
+                  tooltip: 'Run selected in Auto Test',
+                  onPressed:
+                      selectedRows.isEmpty || widget.controller.autoTestRunning
+                          ? null
+                          : () => widget.controller.startScenario(
+                            selectedRowIds:
+                                selectedRows.map((row) => row.id).toList(),
+                          ),
+                  icon: const Icon(Icons.playlist_play, size: 20),
+                ),
               ],
               _rowsMenu(selectedRows),
               const SizedBox(width: 8),
               // Filter & View popup
               PopupMenuButton<String>(
                 tooltip: 'Filter & Display Options',
-                child: Chip(avatar: Icon(Icons.tune, size: 16, color: (_enabledOnly || _selectedOnly || _type != null) ? Theme.of(context).colorScheme.primary : null), label: const Text('Filter'), visualDensity: VisualDensity.compact),
+                child: Chip(
+                  avatar: Icon(
+                    Icons.tune,
+                    size: 16,
+                    color:
+                        (_enabledOnly || _selectedOnly || _type != null)
+                            ? Theme.of(context).colorScheme.primary
+                            : null,
+                  ),
+                  label: const Text('Filter'),
+                  visualDensity: VisualDensity.compact,
+                ),
                 itemBuilder:
                     (context) => [
-                      PopupMenuItem(enabled: false, child: Text('SIGNAL TYPE', style: Theme.of(context).textTheme.labelSmall)),
-                      CheckedPopupMenuItem(checked: _type == null, value: 'type_all', child: const Text('All Types')),
-                      CheckedPopupMenuItem(checked: _type == CarParkingSignalType.card, value: 'type_card', child: const Text('Card Only')),
-                      CheckedPopupMenuItem(checked: _type == CarParkingSignalType.io, value: 'type_io', child: const Text('IO Only')),
+                      PopupMenuItem(
+                        enabled: false,
+                        child: Text(
+                          'SIGNAL TYPE',
+                          style: Theme.of(context).textTheme.labelSmall,
+                        ),
+                      ),
+                      CheckedPopupMenuItem(
+                        checked: _type == null,
+                        value: 'type_all',
+                        child: const Text('All Types'),
+                      ),
+                      CheckedPopupMenuItem(
+                        checked: _type == CarParkingSignalType.card,
+                        value: 'type_card',
+                        child: const Text('Card Only'),
+                      ),
+                      CheckedPopupMenuItem(
+                        checked: _type == CarParkingSignalType.io,
+                        value: 'type_io',
+                        child: const Text('IO Only'),
+                      ),
                       const PopupMenuDivider(),
-                      PopupMenuItem(enabled: false, child: Text('FILTERS', style: Theme.of(context).textTheme.labelSmall)),
-                      CheckedPopupMenuItem(checked: _enabledOnly, value: 'filter_enabled', child: const Text('Enabled Only')),
-                      CheckedPopupMenuItem(checked: _selectedOnly, value: 'filter_selected', child: const Text('Selected Only')),
+                      PopupMenuItem(
+                        enabled: false,
+                        child: Text(
+                          'FILTERS',
+                          style: Theme.of(context).textTheme.labelSmall,
+                        ),
+                      ),
+                      CheckedPopupMenuItem(
+                        checked: _enabledOnly,
+                        value: 'filter_enabled',
+                        child: const Text('Enabled Only'),
+                      ),
+                      CheckedPopupMenuItem(
+                        checked: _selectedOnly,
+                        value: 'filter_selected',
+                        child: const Text('Selected Only'),
+                      ),
                       const PopupMenuDivider(),
-                      PopupMenuItem(enabled: false, child: Text('DISPLAY DENSITY', style: Theme.of(context).textTheme.labelSmall)),
-                      CheckedPopupMenuItem(checked: _density == SignalDensity.compact, value: 'density_compact', child: const Text('Compact')),
-                      CheckedPopupMenuItem(checked: _density == SignalDensity.comfortable, value: 'density_comfortable', child: const Text('Comfortable')),
-                      CheckedPopupMenuItem(checked: _density == SignalDensity.advanced, value: 'density_advanced', child: const Text('Advanced')),
+                      PopupMenuItem(
+                        enabled: false,
+                        child: Text(
+                          'DISPLAY DENSITY',
+                          style: Theme.of(context).textTheme.labelSmall,
+                        ),
+                      ),
+                      CheckedPopupMenuItem(
+                        checked: _density == SignalDensity.compact,
+                        value: 'density_compact',
+                        child: const Text('Compact'),
+                      ),
+                      CheckedPopupMenuItem(
+                        checked: _density == SignalDensity.comfortable,
+                        value: 'density_comfortable',
+                        child: const Text('Comfortable'),
+                      ),
+                      CheckedPopupMenuItem(
+                        checked: _density == SignalDensity.advanced,
+                        value: 'density_advanced',
+                        child: const Text('Advanced'),
+                      ),
                     ],
                 onSelected: (value) {
                   setState(() {
@@ -128,15 +241,37 @@ class _CarParkingSignalListState extends State<CarParkingSignalList> {
               const SizedBox(width: 4),
               // Add buttons
               FilledButton.icon(
-                style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 16), minimumSize: Size.zero, tapTargetSize: MaterialTapTargetSize.shrinkWrap, textStyle: const TextStyle(fontSize: 12)),
-                onPressed: widget.controller.autoTestRunning ? null : widget.controller.addCardRow,
+                style: FilledButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 16,
+                  ),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  textStyle: const TextStyle(fontSize: 12),
+                ),
+                onPressed:
+                    widget.controller.autoTestRunning
+                        ? null
+                        : widget.controller.addCardRow,
                 icon: const Icon(Icons.credit_card, size: 14),
                 label: const Text('Card'),
               ),
               const SizedBox(width: 4),
               OutlinedButton.icon(
-                style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 16), minimumSize: Size.zero, tapTargetSize: MaterialTapTargetSize.shrinkWrap, textStyle: const TextStyle(fontSize: 12)),
-                onPressed: widget.controller.autoTestRunning ? null : widget.controller.addIoRow,
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 16,
+                  ),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  textStyle: const TextStyle(fontSize: 12),
+                ),
+                onPressed:
+                    widget.controller.autoTestRunning
+                        ? null
+                        : widget.controller.addIoRow,
                 icon: const Icon(Icons.input, size: 14),
                 label: const Text('IO'),
               ),
@@ -153,16 +288,34 @@ class _CarParkingSignalListState extends State<CarParkingSignalList> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.inbox_outlined, size: 48, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3)),
+                      Icon(
+                        Icons.inbox_outlined,
+                        size: 48,
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withValues(alpha: 0.3),
+                      ),
                       const SizedBox(height: 12),
-                      Text('No signal rows', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5))),
+                      Text(
+                        'No signal rows',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onSurface.withValues(alpha: 0.5),
+                        ),
+                      ),
                     ],
                   ),
                 );
               }
               return GridView.builder(
                 padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: columns, mainAxisExtent: _density == SignalDensity.compact ? 100 : 132, crossAxisSpacing: 6, mainAxisSpacing: 6),
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: columns,
+                  mainAxisExtent: _density == SignalDensity.compact ? 100 : 132,
+                  crossAxisSpacing: 6,
+                  mainAxisSpacing: 6,
+                ),
                 itemCount: rows.length,
                 itemBuilder: (context, index) {
                   final row = rows[index];
@@ -172,7 +325,8 @@ class _CarParkingSignalListState extends State<CarParkingSignalList> {
                     controller: widget.controller,
                     density: _density,
                     selected: widget.selectedRows.contains(row.id),
-                    current: widget.controller.runnerSnapshot.currentRowId == row.id,
+                    current:
+                        widget.controller.runnerSnapshot.currentRowId == row.id,
                     onSelected: (selected) {
                       setState(() {
                         if (selected) {
@@ -197,15 +351,27 @@ class _CarParkingSignalListState extends State<CarParkingSignalList> {
     final hasSelection = widget.selectedRows.isNotEmpty;
     return PopupMenuButton<String>(
       tooltip: 'Rows',
-      child: const Chip(avatar: Icon(Icons.table_rows, size: 16), label: Text('Rows'), visualDensity: VisualDensity.compact),
+      child: const Chip(
+        avatar: Icon(Icons.table_rows, size: 16),
+        label: Text('Rows'),
+        visualDensity: VisualDensity.compact,
+      ),
       onSelected: (value) async {
         switch (value) {
           case 'import':
             await _showImportDialog();
           case 'export_all':
-            await Clipboard.setData(ClipboardData(text: widget.controller.exportRowsJson()));
+            await Clipboard.setData(
+              ClipboardData(text: widget.controller.exportRowsJson()),
+            );
           case 'export_selected':
-            await Clipboard.setData(ClipboardData(text: widget.controller.exportSelectedRowsJson(widget.selectedRows)));
+            await Clipboard.setData(
+              ClipboardData(
+                text: widget.controller.exportSelectedRowsJson(
+                  widget.selectedRows,
+                ),
+              ),
+            );
           case 'duplicate_selected':
             widget.controller.duplicateRows(widget.selectedRows);
           case 'delete_selected':
@@ -222,17 +388,51 @@ class _CarParkingSignalListState extends State<CarParkingSignalList> {
       },
       itemBuilder:
           (context) => [
-            const PopupMenuItem(value: 'import', child: Text('Import rows JSON')),
-            const PopupMenuItem(value: 'export_all', child: Text('Export all rows JSON')),
-            PopupMenuItem(enabled: hasSelection, value: 'export_selected', child: const Text('Export selected rows JSON')),
+            const PopupMenuItem(
+              value: 'import',
+              child: Text('Import rows JSON'),
+            ),
+            const PopupMenuItem(
+              value: 'export_all',
+              child: Text('Export all rows JSON'),
+            ),
+            PopupMenuItem(
+              enabled: hasSelection,
+              value: 'export_selected',
+              child: const Text('Export selected rows JSON'),
+            ),
             const PopupMenuDivider(),
-            PopupMenuItem(enabled: hasSelection && !widget.controller.autoTestRunning, value: 'send_selected', child: const Text('Send selected once')),
-            PopupMenuItem(enabled: hasSelection && !widget.controller.autoTestRunning, value: 'duplicate_selected', child: const Text('Duplicate selected rows')),
-            PopupMenuItem(enabled: hasSelection, value: 'enable_selected', child: const Text('Enable selected rows')),
-            PopupMenuItem(enabled: hasSelection, value: 'disable_selected', child: const Text('Disable selected rows')),
-            PopupMenuItem(enabled: hasSelection && !widget.controller.autoTestRunning, value: 'delete_selected', child: const Text('Delete selected rows')),
+            PopupMenuItem(
+              enabled: hasSelection && !widget.controller.autoTestRunning,
+              value: 'send_selected',
+              child: const Text('Send selected once'),
+            ),
+            PopupMenuItem(
+              enabled: hasSelection && !widget.controller.autoTestRunning,
+              value: 'duplicate_selected',
+              child: const Text('Duplicate selected rows'),
+            ),
+            PopupMenuItem(
+              enabled: hasSelection,
+              value: 'enable_selected',
+              child: const Text('Enable selected rows'),
+            ),
+            PopupMenuItem(
+              enabled: hasSelection,
+              value: 'disable_selected',
+              child: const Text('Disable selected rows'),
+            ),
+            PopupMenuItem(
+              enabled: hasSelection && !widget.controller.autoTestRunning,
+              value: 'delete_selected',
+              child: const Text('Delete selected rows'),
+            ),
             const PopupMenuDivider(),
-            PopupMenuItem(enabled: hasSelection, value: 'clear_selection', child: const Text('Clear selection')),
+            PopupMenuItem(
+              enabled: hasSelection,
+              value: 'clear_selection',
+              child: const Text('Clear selection'),
+            ),
           ],
     );
   }
@@ -243,8 +443,17 @@ class _CarParkingSignalListState extends State<CarParkingSignalList> {
     if (_selectedOnly && !widget.selectedRows.contains(row.id)) return false;
     final query = _search.text.trim().toLowerCase();
     if (query.isEmpty) return true;
-    final device = widget.controller.devices.where((item) => item.id == row.deviceProfileId).map((item) => item.label).join(' ');
-    return [row.label, row.cardId, row.inputName, row.note, device].join(' ').toLowerCase().contains(query);
+    final device = widget.controller.devices
+        .where((item) => item.id == row.deviceProfileId)
+        .map((item) => item.label)
+        .join(' ');
+    return [
+      row.label,
+      row.cardId,
+      row.inputName,
+      row.note,
+      device,
+    ].join(' ').toLowerCase().contains(query);
   }
 
   void _clearSelection() {
@@ -255,7 +464,9 @@ class _CarParkingSignalListState extends State<CarParkingSignalList> {
   Future<void> _sendSelectedOnce(List<CarParkingSignalRow> selectedRows) async {
     final enabledRows = selectedRows.where((row) => row.enabled).toList();
     if (enabledRows.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No enabled selected rows to send.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No enabled selected rows to send.')),
+      );
       return;
     }
     for (final row in enabledRows) {
@@ -273,8 +484,19 @@ class _CarParkingSignalListState extends State<CarParkingSignalList> {
       builder:
           (context) => AlertDialog(
             title: const Text('Delete selected rows?'),
-            content: Text('Delete $count selected row${count == 1 ? '' : 's'}?'),
-            actions: [TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')), FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Delete'))],
+            content: Text(
+              'Delete $count selected row${count == 1 ? '' : 's'}?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Delete'),
+              ),
+            ],
           ),
     );
     if (confirmed == true) {
@@ -298,11 +520,26 @@ class _CarParkingSignalListState extends State<CarParkingSignalList> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [TextField(controller: controller, minLines: 8, maxLines: 14, style: const TextStyle(fontFamily: 'monospace'), decoration: InputDecoration(hintText: '[{ "label": "Card 1", ... }]', errorText: errorText, border: const OutlineInputBorder()))],
+                      children: [
+                        TextField(
+                          controller: controller,
+                          minLines: 8,
+                          maxLines: 14,
+                          style: const TextStyle(fontFamily: 'monospace'),
+                          decoration: InputDecoration(
+                            hintText: '[{ "label": "Card 1", ... }]',
+                            errorText: errorText,
+                            border: const OutlineInputBorder(),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                   actions: [
-                    TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+                    TextButton(
+                      onPressed: () => Navigator.pop(context, false),
+                      child: const Text('Cancel'),
+                    ),
                     FilledButton(
                       onPressed: () {
                         try {
@@ -320,7 +557,9 @@ class _CarParkingSignalListState extends State<CarParkingSignalList> {
     );
     controller.dispose();
     if (imported == true && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Rows imported.')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Rows imported.')));
     }
   }
 }

@@ -32,7 +32,13 @@ class SerialPortEngine {
     }
   }
 
-  Future<void> open({required String name, required int baudRate, required int dataBits, required int stopBits, required int parity}) async {
+  Future<void> open({
+    required String name,
+    required int baudRate,
+    required int dataBits,
+    required int stopBits,
+    required int parity,
+  }) async {
     await close();
     try {
       final available = availablePorts();
@@ -81,7 +87,9 @@ class SerialPortEngine {
     }
     final written = port.write(Uint8List.fromList(bytes));
     if (written != bytes.length) {
-      final error = StateError('Serial write incomplete: wrote $written/${bytes.length} bytes.');
+      final error = StateError(
+        'Serial write incomplete: wrote $written/${bytes.length} bytes.',
+      );
       _errorController.add(error);
       throw error;
     }
@@ -124,13 +132,17 @@ class SerialPortEngine {
     if (lower.contains('permission') || lower.contains('access is denied')) {
       return 'Permission denied while opening serial port. Close other apps or run with suitable permissions. ($text)';
     }
-    if (lower.contains('busy') || lower.contains('already') || lower.contains('in use')) {
+    if (lower.contains('busy') ||
+        lower.contains('already') ||
+        lower.contains('in use')) {
       return 'Serial port is busy or already open. Close the other connection and retry. ($text)';
     }
     if (lower.contains('not found') || lower.contains('no such')) {
       return 'Serial port not found. Refresh the port list and check the cable. ($text)';
     }
-    if (lower.contains('unsupported') || lower.contains('failed to load') || lower.contains('library')) {
+    if (lower.contains('unsupported') ||
+        lower.contains('failed to load') ||
+        lower.contains('library')) {
       return 'Serial library is unavailable or unsupported on this platform. ($text)';
     }
     return text;

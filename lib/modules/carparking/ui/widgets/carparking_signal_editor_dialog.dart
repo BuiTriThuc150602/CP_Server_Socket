@@ -3,12 +3,29 @@ import 'package:socket_server/modules/carparking/models/carparking_models.dart';
 import 'package:socket_server/modules/carparking/services/carparking_controller.dart';
 import 'package:socket_server/modules/carparking/services/carparking_payload_factory.dart';
 
-Future<void> showCarParkingSignalEditor(BuildContext context, CarParkingController controller, CarParkingSignalRow row, {bool quickSend = false}) {
-  return showDialog<void>(context: context, builder: (context) => _SignalEditorDialog(controller: controller, row: row, quickSend: quickSend));
+Future<void> showCarParkingSignalEditor(
+  BuildContext context,
+  CarParkingController controller,
+  CarParkingSignalRow row, {
+  bool quickSend = false,
+}) {
+  return showDialog<void>(
+    context: context,
+    builder:
+        (context) => _SignalEditorDialog(
+          controller: controller,
+          row: row,
+          quickSend: quickSend,
+        ),
+  );
 }
 
 class _SignalEditorDialog extends StatefulWidget {
-  const _SignalEditorDialog({required this.controller, required this.row, required this.quickSend});
+  const _SignalEditorDialog({
+    required this.controller,
+    required this.row,
+    required this.quickSend,
+  });
 
   final CarParkingController controller;
   final CarParkingSignalRow row;
@@ -67,52 +84,134 @@ class _SignalEditorDialogState extends State<_SignalEditorDialog> {
                 spacing: 8,
                 runSpacing: 8,
                 children: [
-                  SizedBox(width: 220, child: TextField(controller: _label, decoration: const InputDecoration(labelText: 'Label'))),
+                  SizedBox(
+                    width: 220,
+                    child: TextField(
+                      controller: _label,
+                      decoration: const InputDecoration(labelText: 'Label'),
+                    ),
+                  ),
                   SizedBox(
                     width: 220,
                     child: DropdownButtonFormField<String>(
                       initialValue: _row.deviceProfileId,
                       decoration: const InputDecoration(labelText: 'Device'),
-                      items: [for (final device in widget.controller.devices) DropdownMenuItem(value: device.id, child: Text(device.label))],
+                      items: [
+                        for (final device in widget.controller.devices)
+                          DropdownMenuItem(
+                            value: device.id,
+                            child: Text(device.label),
+                          ),
+                      ],
                       onChanged: (value) {
                         if (value != null) {
-                          setState(() => _row = _row.copyWith(deviceProfileId: value));
+                          setState(
+                            () => _row = _row.copyWith(deviceProfileId: value),
+                          );
                         }
                       },
                     ),
                   ),
                   if (_row.type == CarParkingSignalType.card) ...[
-                    SizedBox(width: 220, child: TextField(controller: _cardId, autofocus: widget.quickSend, decoration: const InputDecoration(labelText: 'Card ID'), onSubmitted: widget.quickSend ? (_) => _sendAndClose() : null)),
-                    SizedBox(width: 120, child: TextField(controller: _readerIndex, decoration: const InputDecoration(labelText: 'Reader'))),
-                    SizedBox(width: 220, child: TextField(controller: _readerName, decoration: const InputDecoration(labelText: 'Reader name'))),
+                    SizedBox(
+                      width: 220,
+                      child: TextField(
+                        controller: _cardId,
+                        autofocus: widget.quickSend,
+                        decoration: const InputDecoration(labelText: 'Card ID'),
+                        onSubmitted:
+                            widget.quickSend ? (_) => _sendAndClose() : null,
+                      ),
+                    ),
+                    SizedBox(
+                      width: 120,
+                      child: TextField(
+                        controller: _readerIndex,
+                        decoration: const InputDecoration(labelText: 'Reader'),
+                      ),
+                    ),
+                    SizedBox(
+                      width: 220,
+                      child: TextField(
+                        controller: _readerName,
+                        decoration: const InputDecoration(
+                          labelText: 'Reader name',
+                        ),
+                      ),
+                    ),
                   ] else ...[
                     SizedBox(
                       width: 220,
                       child: DropdownButtonFormField<int>(
                         initialValue: _row.inputIndex.clamp(1, 8),
                         decoration: const InputDecoration(labelText: 'Input'),
-                        items: [for (var i = 0; i < CarParkingConstants.inputNames.length; i++) DropdownMenuItem(value: i + 1, child: Text(CarParkingConstants.inputNames[i]))],
+                        items: [
+                          for (
+                            var i = 0;
+                            i < CarParkingConstants.inputNames.length;
+                            i++
+                          )
+                            DropdownMenuItem(
+                              value: i + 1,
+                              child: Text(CarParkingConstants.inputNames[i]),
+                            ),
+                        ],
                         onChanged: (value) {
                           if (value != null) {
                             setState(() {
-                              _row = _row.copyWith(inputIndex: value, inputName: CarParkingConstants.inputNames[value - 1]);
+                              _row = _row.copyWith(
+                                inputIndex: value,
+                                inputName:
+                                    CarParkingConstants.inputNames[value - 1],
+                              );
                               _inputName.text = _row.inputName;
                             });
                           }
                         },
                       ),
                     ),
-                    SizedBox(width: 220, child: TextField(controller: _inputName, decoration: const InputDecoration(labelText: 'Input name'))),
+                    SizedBox(
+                      width: 220,
+                      child: TextField(
+                        controller: _inputName,
+                        decoration: const InputDecoration(
+                          labelText: 'Input name',
+                        ),
+                      ),
+                    ),
                   ],
-                  SizedBox(width: 120, child: TextField(controller: _delay, decoration: const InputDecoration(labelText: 'Delay ms'))),
-                  SizedBox(width: 460, child: TextField(controller: _note, decoration: const InputDecoration(labelText: 'Note'))),
+                  SizedBox(
+                    width: 120,
+                    child: TextField(
+                      controller: _delay,
+                      decoration: const InputDecoration(labelText: 'Delay ms'),
+                    ),
+                  ),
+                  SizedBox(
+                    width: 460,
+                    child: TextField(
+                      controller: _note,
+                      decoration: const InputDecoration(labelText: 'Note'),
+                    ),
+                  ),
                 ],
               ),
             ],
           ),
         ),
       ),
-      actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')), OutlinedButton(onPressed: _save, child: const Text('Save')), FilledButton.icon(onPressed: _sendAndClose, icon: const Icon(Icons.send), label: const Text('Send & close'))],
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        OutlinedButton(onPressed: _save, child: const Text('Save')),
+        FilledButton.icon(
+          onPressed: _sendAndClose,
+          icon: const Icon(Icons.send),
+          label: const Text('Send & close'),
+        ),
+      ],
     );
   }
 

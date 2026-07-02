@@ -12,6 +12,7 @@ class AppSettingsController extends ChangeNotifier {
 
   AppSettings get settings => _settings;
   ThemeMode get themeMode => _settings.themeMode;
+  String get localeCode => _settings.localeCode;
   bool get loaded => _loaded;
 
   Future<void> load() async {
@@ -33,6 +34,18 @@ class AppSettingsController extends ChangeNotifier {
       ThemeMode.dark => ThemeMode.system,
     };
     return setThemeMode(next);
+  }
+
+  Future<void> setLocaleCode(String localeCode) async {
+    _settings = _settings.copyWith(localeCode: localeCode);
+    notifyListeners();
+    await _repository.save(_settings);
+  }
+
+  Future<void> setTerminalShellCommand(String command) async {
+    _settings = _settings.copyWith(terminalShellCommand: command);
+    notifyListeners();
+    await _repository.save(_settings);
   }
 
   Future<void> dismissTerminalWarning() async {

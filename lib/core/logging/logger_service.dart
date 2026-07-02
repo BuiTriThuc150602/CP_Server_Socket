@@ -28,7 +28,12 @@ class LoggerService {
       }
       await _createTodayLogFile();
     } catch (error, stackTrace) {
-      developer.log('Logger initialization failed', name: 'SocketTestingTools.Logger', error: error, stackTrace: stackTrace);
+      developer.log(
+        'Logger initialization failed',
+        name: 'SocketTestingTools.Logger',
+        error: error,
+        stackTrace: stackTrace,
+      );
       rethrow;
     }
   }
@@ -38,7 +43,12 @@ class LoggerService {
   Future<void> error(String message, [Object? error, StackTrace? stackTrace]) {
     final suffix = error == null ? '' : ' | $error';
     if (error != null) {
-      developer.log(message, name: 'SocketTestingTools.Logger', error: error, stackTrace: stackTrace);
+      developer.log(
+        message,
+        name: 'SocketTestingTools.Logger',
+        error: error,
+        stackTrace: stackTrace,
+      );
     }
     return _write('ERROR', '$message$suffix');
   }
@@ -100,9 +110,18 @@ class LoggerService {
       while (_queue.isNotEmpty) {
         batch.write(_queue.removeFirst());
       }
-      await _logFile!.writeAsString(batch.toString(), mode: FileMode.append, flush: true);
+      await _logFile!.writeAsString(
+        batch.toString(),
+        mode: FileMode.append,
+        flush: true,
+      );
     } catch (error, stackTrace) {
-      developer.log('Logger write failed', name: 'SocketTestingTools.Logger', error: error, stackTrace: stackTrace);
+      developer.log(
+        'Logger write failed',
+        name: 'SocketTestingTools.Logger',
+        error: error,
+        stackTrace: stackTrace,
+      );
     } finally {
       _isWriting = false;
       if (_queue.isNotEmpty) {

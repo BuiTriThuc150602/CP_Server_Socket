@@ -39,11 +39,26 @@ class _SerialLabScreenState extends State<SerialLabScreen> {
       _engine.states.listen((state) => setState(() => _state = state)),
       _engine.incoming.listen((bytes) {
         _rxBytes += bytes.length;
-        _addConsole(SocketConsoleEntry(timestamp: DateTime.now(), kind: SocketConsoleKind.incoming, text: PayloadCodec.previewBytes(bytes), bytes: bytes));
+        _addConsole(
+          SocketConsoleEntry(
+            timestamp: DateTime.now(),
+            kind: SocketConsoleKind.incoming,
+            text: PayloadCodec.previewBytes(bytes),
+            bytes: bytes,
+          ),
+        );
       }),
       _engine.outgoing.listen((bytes) {
         _txBytes += bytes.length;
-        _addConsole(SocketConsoleEntry(timestamp: DateTime.now(), kind: SocketConsoleKind.outgoing, text: 'Sent ${bytes.length} bytes\n${PayloadCodec.previewBytes(bytes)}', bytes: bytes));
+        _addConsole(
+          SocketConsoleEntry(
+            timestamp: DateTime.now(),
+            kind: SocketConsoleKind.outgoing,
+            text:
+                'Sent ${bytes.length} bytes\n${PayloadCodec.previewBytes(bytes)}',
+            bytes: bytes,
+          ),
+        );
       }),
       _engine.errors.listen((error) => _addError(error)),
     ]);
@@ -76,45 +91,145 @@ class _SerialLabScreenState extends State<SerialLabScreen> {
                 width: constraints.maxWidth < 720 ? 220 : 180,
                 child: DropdownButtonFormField<String>(
                   key: ValueKey(_selectedPort),
-                  initialValue: _ports.contains(_selectedPort) ? _selectedPort : null,
+                  initialValue:
+                      _ports.contains(_selectedPort) ? _selectedPort : null,
                   hint: const Text('Select Port'),
                   isDense: true,
                   isExpanded: true,
-                  items: [for (final port in _ports) DropdownMenuItem(value: port, child: Text(port, overflow: TextOverflow.ellipsis))],
-                  onChanged: open ? null : (value) => setState(() => _selectedPort = value),
-                  decoration: const InputDecoration(isDense: true, contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12)),
+                  items: [
+                    for (final port in _ports)
+                      DropdownMenuItem(
+                        value: port,
+                        child: Text(port, overflow: TextOverflow.ellipsis),
+                      ),
+                  ],
+                  onChanged:
+                      open
+                          ? null
+                          : (value) => setState(() => _selectedPort = value),
+                  decoration: const InputDecoration(
+                    isDense: true,
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 12,
+                    ),
+                  ),
                 ),
               ),
               const SizedBox(width: 8),
-              IconButton(tooltip: 'Refresh ports', onPressed: _refreshPorts, icon: const Icon(Icons.refresh, size: 20)),
+              IconButton(
+                tooltip: 'Refresh ports',
+                onPressed: _refreshPorts,
+                icon: const Icon(Icons.refresh, size: 20),
+              ),
               PopupMenuButton<int>(
                 tooltip: 'Serial presets',
                 onSelected: open ? null : _applyPreset,
-                itemBuilder: (context) => const [PopupMenuItem(value: 9600, child: Text('9600 8N1')), PopupMenuItem(value: 19200, child: Text('19200 8N1')), PopupMenuItem(value: 38400, child: Text('38400 8N1')), PopupMenuItem(value: 115200, child: Text('115200 8N1'))],
-                child: const Chip(label: Text('Presets'), avatar: Icon(Icons.tune, size: 16), visualDensity: VisualDensity.compact),
+                itemBuilder:
+                    (context) => const [
+                      PopupMenuItem(value: 9600, child: Text('9600 8N1')),
+                      PopupMenuItem(value: 19200, child: Text('19200 8N1')),
+                      PopupMenuItem(value: 38400, child: Text('38400 8N1')),
+                      PopupMenuItem(value: 115200, child: Text('115200 8N1')),
+                    ],
+                child: const Chip(
+                  label: Text('Presets'),
+                  avatar: Icon(Icons.tune, size: 16),
+                  visualDensity: VisualDensity.compact,
+                ),
               ),
               // Settings
-              SizedBox(width: 128, child: _numberDropdown('Baud', _baudRate, [9600, 19200, 38400, 57600, 115200], open, (v) => setState(() => _baudRate = v))),
-              SizedBox(width: 96, child: _numberDropdown('Bits', _dataBits, [7, 8], open, (v) => setState(() => _dataBits = v))),
-              SizedBox(width: 96, child: _numberDropdown('Stop', _stopBits, [1, 2], open, (v) => setState(() => _stopBits = v))),
+              SizedBox(
+                width: 128,
+                child: _numberDropdown(
+                  'Baud',
+                  _baudRate,
+                  [9600, 19200, 38400, 57600, 115200],
+                  open,
+                  (v) => setState(() => _baudRate = v),
+                ),
+              ),
+              SizedBox(
+                width: 96,
+                child: _numberDropdown(
+                  'Bits',
+                  _dataBits,
+                  [7, 8],
+                  open,
+                  (v) => setState(() => _dataBits = v),
+                ),
+              ),
+              SizedBox(
+                width: 96,
+                child: _numberDropdown(
+                  'Stop',
+                  _stopBits,
+                  [1, 2],
+                  open,
+                  (v) => setState(() => _stopBits = v),
+                ),
+              ),
               SizedBox(
                 width: 118,
                 child: DropdownButtonFormField<int>(
                   initialValue: _parity,
                   isDense: true,
                   isExpanded: true,
-                  items: const [DropdownMenuItem(value: SerialPortParity.none, child: Text('None')), DropdownMenuItem(value: SerialPortParity.odd, child: Text('Odd')), DropdownMenuItem(value: SerialPortParity.even, child: Text('Even'))],
-                  onChanged: open ? null : (value) => setState(() => _parity = value ?? _parity),
-                  decoration: const InputDecoration(isDense: true, contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12)),
+                  items: const [
+                    DropdownMenuItem(
+                      value: SerialPortParity.none,
+                      child: Text('None'),
+                    ),
+                    DropdownMenuItem(
+                      value: SerialPortParity.odd,
+                      child: Text('Odd'),
+                    ),
+                    DropdownMenuItem(
+                      value: SerialPortParity.even,
+                      child: Text('Even'),
+                    ),
+                  ],
+                  onChanged:
+                      open
+                          ? null
+                          : (value) =>
+                              setState(() => _parity = value ?? _parity),
+                  decoration: const InputDecoration(
+                    isDense: true,
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 12,
+                    ),
+                  ),
                 ),
               ),
               // Connect
-              FilledButton.icon(onPressed: open ? _engine.close : _open, icon: Icon(open ? Icons.close : Icons.usb, size: 18), label: Text(open ? 'Close' : 'Open')),
+              FilledButton.icon(
+                onPressed: open ? _engine.close : _open,
+                icon: Icon(open ? Icons.close : Icons.usb, size: 18),
+                label: Text(open ? 'Close' : 'Open'),
+              ),
               SizedBox(width: 112, child: _payloadModeDropdown()),
               SizedBox(width: 112, child: _framingDropdown()),
-              FilledButton.icon(onPressed: open ? _send : null, icon: const Icon(Icons.send, size: 18), label: const Text('Send')),
-              OutlinedButton.icon(onPressed: _clearCounters, icon: const Icon(Icons.refresh, size: 18), label: Text('RX $_rxBytes / TX $_txBytes')),
-              Chip(avatar: Icon(open ? Icons.check_circle : Icons.cancel, size: 16, color: open ? Colors.green : Colors.red), label: Text(_state.name, style: const TextStyle(fontSize: 12)), visualDensity: VisualDensity.compact),
+              FilledButton.icon(
+                onPressed: open ? _send : null,
+                icon: const Icon(Icons.send, size: 18),
+                label: const Text('Send'),
+              ),
+              OutlinedButton.icon(
+                onPressed: _clearCounters,
+                icon: const Icon(Icons.refresh, size: 18),
+                label: Text('RX $_rxBytes / TX $_txBytes'),
+              ),
+              Chip(
+                avatar: Icon(
+                  open ? Icons.check_circle : Icons.cancel,
+                  size: 16,
+                  color: open ? Colors.green : Colors.red,
+                ),
+                label: Text(_state.name, style: const TextStyle(fontSize: 12)),
+                visualDensity: VisualDensity.compact,
+              ),
             ],
           );
         },
@@ -127,7 +242,12 @@ class _SerialLabScreenState extends State<SerialLabScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Payload Composer', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
+              Text(
+                'Payload Composer',
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+              ),
               const SizedBox(height: 12),
               Expanded(
                 child: TextField(
@@ -135,7 +255,15 @@ class _SerialLabScreenState extends State<SerialLabScreen> {
                   minLines: 10,
                   maxLines: 20,
                   style: const TextStyle(fontFamily: 'monospace', fontSize: 13),
-                  decoration: InputDecoration(hintText: _payloadMode == PayloadMode.hex ? '48 65 6C 6C 6F' : 'ASCII/Text payload', filled: true, border: const OutlineInputBorder(), contentPadding: const EdgeInsets.all(12)),
+                  decoration: InputDecoration(
+                    hintText:
+                        _payloadMode == PayloadMode.hex
+                            ? '48 65 6C 6C 6F'
+                            : 'ASCII/Text payload',
+                    filled: true,
+                    border: const OutlineInputBorder(),
+                    contentPadding: const EdgeInsets.all(12),
+                  ),
                 ),
               ),
             ],
@@ -147,14 +275,29 @@ class _SerialLabScreenState extends State<SerialLabScreen> {
     );
   }
 
-  Widget _numberDropdown(String label, int value, List<int> values, bool disabled, ValueChanged<int> onChanged) {
+  Widget _numberDropdown(
+    String label,
+    int value,
+    List<int> values,
+    bool disabled,
+    ValueChanged<int> onChanged,
+  ) {
     return DropdownButtonFormField<int>(
       initialValue: value,
       isDense: true,
       isExpanded: true,
-      items: [for (final item in values) DropdownMenuItem(value: item, child: Text('$label $item', overflow: TextOverflow.ellipsis))],
+      items: [
+        for (final item in values)
+          DropdownMenuItem(
+            value: item,
+            child: Text('$label $item', overflow: TextOverflow.ellipsis),
+          ),
+      ],
       onChanged: disabled ? null : (v) => onChanged(v ?? values.first),
-      decoration: const InputDecoration(isDense: true, contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12)),
+      decoration: const InputDecoration(
+        isDense: true,
+        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      ),
     );
   }
 
@@ -163,9 +306,17 @@ class _SerialLabScreenState extends State<SerialLabScreen> {
       initialValue: _payloadMode,
       isDense: true,
       isExpanded: true,
-      items: const [DropdownMenuItem(value: PayloadMode.text, child: Text('Text')), DropdownMenuItem(value: PayloadMode.hex, child: Text('HEX'))],
-      onChanged: (value) => setState(() => _payloadMode = value ?? _payloadMode),
-      decoration: const InputDecoration(labelText: 'Mode', isDense: true, contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12)),
+      items: const [
+        DropdownMenuItem(value: PayloadMode.text, child: Text('Text')),
+        DropdownMenuItem(value: PayloadMode.hex, child: Text('HEX')),
+      ],
+      onChanged:
+          (value) => setState(() => _payloadMode = value ?? _payloadMode),
+      decoration: const InputDecoration(
+        labelText: 'Mode',
+        isDense: true,
+        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      ),
     );
   }
 
@@ -174,9 +325,17 @@ class _SerialLabScreenState extends State<SerialLabScreen> {
       initialValue: _framing,
       isDense: true,
       isExpanded: true,
-      items: const [DropdownMenuItem(value: PayloadFraming.raw, child: Text('None')), DropdownMenuItem(value: PayloadFraming.newline, child: Text('LF')), DropdownMenuItem(value: PayloadFraming.crlf, child: Text('CRLF'))],
+      items: const [
+        DropdownMenuItem(value: PayloadFraming.raw, child: Text('None')),
+        DropdownMenuItem(value: PayloadFraming.newline, child: Text('LF')),
+        DropdownMenuItem(value: PayloadFraming.crlf, child: Text('CRLF')),
+      ],
       onChanged: (value) => setState(() => _framing = value ?? _framing),
-      decoration: const InputDecoration(labelText: 'Append', isDense: true, contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12)),
+      decoration: const InputDecoration(
+        labelText: 'Append',
+        isDense: true,
+        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      ),
     );
   }
 
@@ -195,7 +354,13 @@ class _SerialLabScreenState extends State<SerialLabScreen> {
       return;
     }
     try {
-      await _engine.open(name: port, baudRate: _baudRate, dataBits: _dataBits, stopBits: _stopBits, parity: _parity);
+      await _engine.open(
+        name: port,
+        baudRate: _baudRate,
+        dataBits: _dataBits,
+        stopBits: _stopBits,
+        parity: _parity,
+      );
     } catch (error) {
       _addError(error);
     }
@@ -203,7 +368,11 @@ class _SerialLabScreenState extends State<SerialLabScreen> {
 
   void _send() {
     try {
-      final payload = PayloadCodec.encode(_payload.text, _payloadMode, _framing);
+      final payload = PayloadCodec.encode(
+        _payload.text,
+        _payloadMode,
+        _framing,
+      );
       _engine.sendBytes(payload.bytes);
     } catch (error) {
       _addError(error);
@@ -227,7 +396,13 @@ class _SerialLabScreenState extends State<SerialLabScreen> {
   }
 
   void _addError(Object error) {
-    _addConsole(SocketConsoleEntry(timestamp: DateTime.now(), kind: SocketConsoleKind.error, text: error.toString()));
+    _addConsole(
+      SocketConsoleEntry(
+        timestamp: DateTime.now(),
+        kind: SocketConsoleKind.error,
+        text: error.toString(),
+      ),
+    );
   }
 
   void _addConsole(SocketConsoleEntry entry) {

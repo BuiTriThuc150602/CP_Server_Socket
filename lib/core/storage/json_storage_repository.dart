@@ -1,15 +1,23 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
+import 'package:socket_server/core/storage/app_storage.dart';
 
 class JsonStorageRepository {
-  JsonStorageRepository({Directory? rootDirectory, Directory? legacyDirectory})
-    : _rootDirectory = rootDirectory,
-      _legacyDirectory = legacyDirectory;
+  JsonStorageRepository({
+    Directory? rootDirectory,
+    Directory? legacyDirectory,
+    AppStorage? appStorage,
+  }) : _rootDirectory = rootDirectory,
+       _legacyDirectory = legacyDirectory,
+       _appStorage =
+           appStorage ?? JsonFileAppStorage(rootDirectory: rootDirectory);
 
   Directory? _rootDirectory;
   Directory? _legacyDirectory;
+  final AppStorage _appStorage;
 
   Future<Directory> get rootDirectory async {
     final existing = _rootDirectory;
@@ -37,20 +45,16 @@ class JsonStorageRepository {
 
   Future<File> file(String filename) async {
     final dir = await rootDirectory;
-    return File('${dir.path}${Platform.pathSeparator}$filename');
+    return File(p.join(dir.path, filename));
   }
 
   Future<File> legacyFile(String filename) async {
     final dir = await legacyDirectory;
-    return File('${dir.path}${Platform.pathSeparator}$filename');
+    return File(p.join(dir.path, filename));
   }
 
   Future<Map<String, dynamic>?> readMap(String filename) async {
-    final target = await file(filename);
-    if (!await target.exists()) {
-      return null;
-    }
-    return _readMapFile(target);
+    return _appStorage.readJsonDocument(filename);
   }
 
   Future<Map<String, dynamic>?> readLegacyMap(String filename) async {
@@ -62,11 +66,7 @@ class JsonStorageRepository {
   }
 
   Future<void> writeMap(String filename, Map<String, dynamic> value) async {
-    final target = await file(filename);
-    await target.writeAsString(
-      const JsonEncoder.withIndent('  ').convert(value),
-      flush: true,
-    );
+    return _appStorage.writeJsonDocument(filename, value);
   }
 
   Future<Map<String, dynamic>?> _readMapFile(File file) async {

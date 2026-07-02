@@ -6,7 +6,14 @@ import 'package:socket_server/modules/carparking/models/carparking_models.dart';
 enum ScenarioRunnerStatus { stopped, running, paused }
 
 class ScenarioRunnerSnapshot {
-  const ScenarioRunnerSnapshot({required this.status, required this.currentStepIndex, required this.completedLoops, required this.totalSteps, this.currentRowId, this.lastError});
+  const ScenarioRunnerSnapshot({
+    required this.status,
+    required this.currentStepIndex,
+    required this.completedLoops,
+    required this.totalSteps,
+    this.currentRowId,
+    this.lastError,
+  });
 
   final ScenarioRunnerStatus status;
   final int currentStepIndex;
@@ -15,9 +22,21 @@ class ScenarioRunnerSnapshot {
   final String? currentRowId;
   final Object? lastError;
 
-  static const stopped = ScenarioRunnerSnapshot(status: ScenarioRunnerStatus.stopped, currentStepIndex: 0, completedLoops: 0, totalSteps: 0);
+  static const stopped = ScenarioRunnerSnapshot(
+    status: ScenarioRunnerStatus.stopped,
+    currentStepIndex: 0,
+    completedLoops: 0,
+    totalSteps: 0,
+  );
 
-  ScenarioRunnerSnapshot copyWith({ScenarioRunnerStatus? status, int? currentStepIndex, int? completedLoops, int? totalSteps, String? currentRowId, Object? lastError}) {
+  ScenarioRunnerSnapshot copyWith({
+    ScenarioRunnerStatus? status,
+    int? currentStepIndex,
+    int? completedLoops,
+    int? totalSteps,
+    String? currentRowId,
+    Object? lastError,
+  }) {
     return ScenarioRunnerSnapshot(
       status: status ?? this.status,
       currentStepIndex: currentStepIndex ?? this.currentStepIndex,
@@ -42,7 +61,8 @@ class CarParkingScenarioRunner {
   ScenarioStepSender? _sender;
   int _nextIndex = 0;
 
-  final _snapshotController = StreamController<ScenarioRunnerSnapshot>.broadcast();
+  final _snapshotController =
+      StreamController<ScenarioRunnerSnapshot>.broadcast();
 
   ScenarioRunnerSnapshot get snapshot => _snapshot;
 
@@ -52,7 +72,11 @@ class CarParkingScenarioRunner {
 
   bool get isPaused => _snapshot.status == ScenarioRunnerStatus.paused;
 
-  Future<void> start({required List<CarParkingSignalRow> rows, required CarParkingScenario scenario, required ScenarioStepSender sender}) async {
+  Future<void> start({
+    required List<CarParkingSignalRow> rows,
+    required CarParkingScenario scenario,
+    required ScenarioStepSender sender,
+  }) async {
     stop();
     _steps = rows.where((row) => row.enabled).toList();
     _scenario = scenario;
@@ -64,7 +88,14 @@ class CarParkingScenarioRunner {
       return;
     }
 
-    _emit(ScenarioRunnerSnapshot(status: ScenarioRunnerStatus.running, currentStepIndex: 0, completedLoops: 0, totalSteps: _steps.length));
+    _emit(
+      ScenarioRunnerSnapshot(
+        status: ScenarioRunnerStatus.running,
+        currentStepIndex: 0,
+        completedLoops: 0,
+        totalSteps: _steps.length,
+      ),
+    );
     await _runNext();
   }
 
@@ -106,7 +137,13 @@ class CarParkingScenarioRunner {
 
     final index = _selectIndex();
     final row = _steps[index];
-    _emit(_snapshot.copyWith(currentStepIndex: index, totalSteps: _steps.length, currentRowId: row.id));
+    _emit(
+      _snapshot.copyWith(
+        currentStepIndex: index,
+        totalSteps: _steps.length,
+        currentRowId: row.id,
+      ),
+    );
 
     try {
       await _sender?.call(row);
@@ -118,7 +155,9 @@ class CarParkingScenarioRunner {
       }
     }
 
-    final finishedLoop = _scenario.mode == CarParkingScenarioMode.sequential && _nextIndex >= _steps.length;
+    final finishedLoop =
+        _scenario.mode == CarParkingScenarioMode.sequential &&
+        _nextIndex >= _steps.length;
     if (finishedLoop) {
       _nextIndex = 0;
       final completedLoops = _snapshot.completedLoops + 1;

@@ -3,7 +3,8 @@ import 'package:socket_server/modules/carparking/models/carparking_models.dart';
 import 'package:socket_server/modules/carparking/services/carparking_payload_factory.dart';
 
 class CarParkingRepository {
-  CarParkingRepository({JsonStorageRepository? storage}) : _storage = storage ?? JsonStorageRepository();
+  CarParkingRepository({JsonStorageRepository? storage})
+    : _storage = storage ?? JsonStorageRepository();
 
   static const workspaceFile = 'carparking_workspace.json';
   static const oldRowsFile = 'socket_server_data.json';
@@ -27,20 +28,46 @@ class CarParkingRepository {
   }
 
   Future<CarParkingWorkspace> migrateOldData() async {
-    final oldRows = await _storage.readLegacyMap(oldRowsFile) ?? await _storage.readMap(oldRowsFile);
-    final oldDevice = await _storage.readLegacyMap(oldDeviceFile) ?? await _storage.readMap(oldDeviceFile);
-    final oldServer = await _storage.readLegacyMap(oldServerFile) ?? await _storage.readMap(oldServerFile);
+    final oldRows =
+        await _storage.readLegacyMap(oldRowsFile) ??
+        await _storage.readMap(oldRowsFile);
+    final oldDevice =
+        await _storage.readLegacyMap(oldDeviceFile) ??
+        await _storage.readMap(oldDeviceFile);
+    final oldServer =
+        await _storage.readLegacyMap(oldServerFile) ??
+        await _storage.readMap(oldServerFile);
 
     final defaultWorkspace = CarParkingWorkspace.defaults();
-    final device = oldDevice == null ? defaultWorkspace.devices.first : CarParkingDeviceProfile.fromJson({...oldDevice, 'id': 'default_device', 'label': _deviceLabel(oldDevice), 'enabled': true});
+    final device =
+        oldDevice == null
+            ? defaultWorkspace.devices.first
+            : CarParkingDeviceProfile.fromJson({
+              ...oldDevice,
+              'id': 'default_device',
+              'label': _deviceLabel(oldDevice),
+              'enabled': true,
+            });
 
     final rows = _migrateRows(oldRows, device.id);
-    final server = oldServer == null ? defaultWorkspace.server : CarParkingServerProfile.fromJson(oldServer);
+    final server =
+        oldServer == null
+            ? defaultWorkspace.server
+            : CarParkingServerProfile.fromJson(oldServer);
 
-    return CarParkingWorkspace(devices: [device], server: server, rows: rows.isEmpty ? defaultWorkspace.rows : rows, scenarios: [CarParkingScenario.defaults()], defaultDeviceProfileId: device.id);
+    return CarParkingWorkspace(
+      devices: [device],
+      server: server,
+      rows: rows.isEmpty ? defaultWorkspace.rows : rows,
+      scenarios: [CarParkingScenario.defaults()],
+      defaultDeviceProfileId: device.id,
+    );
   }
 
-  List<CarParkingSignalRow> _migrateRows(Map<String, dynamic>? oldRows, String deviceId) {
+  List<CarParkingSignalRow> _migrateRows(
+    Map<String, dynamic>? oldRows,
+    String deviceId,
+  ) {
     final rawRows = oldRows?['rows'];
     if (rawRows is! List) {
       return const [];
@@ -62,14 +89,17 @@ class CarParkingRepository {
         cardCount++;
       }
 
-      final inputName = (map['inputName'] ?? map['selectedInputName'] ?? 'Button 1').toString();
+      final inputName =
+          (map['inputName'] ?? map['selectedInputName'] ?? 'Button 1')
+              .toString();
       final inputIndex = CarParkingConstants.inputNames.indexOf(inputName) + 1;
       final label = (map['label'] ?? '').toString().trim();
 
       final migrated = CarParkingSignalRow.fromJson({
         ...map,
         'id': map['id'] ?? newCarParkingId('row'),
-        'label': label.isEmpty ? (isIo ? 'IO $ioCount' : 'Card $cardCount') : label,
+        'label':
+            label.isEmpty ? (isIo ? 'IO $ioCount' : 'Card $cardCount') : label,
         'type': isIo ? 'io' : 'card',
         'deviceProfileId': map['deviceProfileId'] ?? deviceId,
         'cardId': map['cardId'] ?? map['cardNumber'] ?? '',

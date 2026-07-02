@@ -5,7 +5,13 @@ enum PayloadMode { text, json, hex, base64 }
 enum PayloadFraming { raw, newline, crlf }
 
 class PayloadCodecResult {
-  const PayloadCodecResult({required this.text, required this.bytes, required this.previewText, required this.mode, required this.framing});
+  const PayloadCodecResult({
+    required this.text,
+    required this.bytes,
+    required this.previewText,
+    required this.mode,
+    required this.framing,
+  });
 
   final String text;
   final List<int> bytes;
@@ -17,7 +23,11 @@ class PayloadCodecResult {
 class PayloadCodec {
   const PayloadCodec._();
 
-  static PayloadCodecResult encode(String input, PayloadMode mode, PayloadFraming framing) {
+  static PayloadCodecResult encode(
+    String input,
+    PayloadMode mode,
+    PayloadFraming framing,
+  ) {
     final payloadBytes = switch (mode) {
       PayloadMode.text => utf8.encode(input),
       PayloadMode.json => utf8.encode(jsonEncode(jsonDecode(input))),
@@ -33,10 +43,17 @@ class PayloadCodec {
       },
     ];
     final text = switch (mode) {
-      PayloadMode.text || PayloadMode.json => utf8.decode(framedBytes, allowMalformed: true),
+      PayloadMode.text ||
+      PayloadMode.json => utf8.decode(framedBytes, allowMalformed: true),
       PayloadMode.hex || PayloadMode.base64 => previewBytes(framedBytes),
     };
-    return PayloadCodecResult(text: text, bytes: framedBytes, previewText: previewBytes(framedBytes), mode: mode, framing: framing);
+    return PayloadCodecResult(
+      text: text,
+      bytes: framedBytes,
+      previewText: previewBytes(framedBytes),
+      mode: mode,
+      framing: framing,
+    );
   }
 
   static String prettyJson(String input) {
@@ -50,17 +67,25 @@ class PayloadCodec {
   static List<int> hexToBytes(String input) {
     final cleaned = input.replaceAll(RegExp(r'[^0-9a-fA-F]'), '');
     if (cleaned.length.isOdd) {
-      throw const FormatException('HEX input must contain an even number of digits.');
+      throw const FormatException(
+        'HEX input must contain an even number of digits.',
+      );
     }
-    return [for (var i = 0; i < cleaned.length; i += 2) int.parse(cleaned.substring(i, i + 2), radix: 16)];
+    return [
+      for (var i = 0; i < cleaned.length; i += 2)
+        int.parse(cleaned.substring(i, i + 2), radix: 16),
+    ];
   }
 
   static String bytesToHex(List<int> bytes) {
-    return bytes.map((byte) => byte.toRadixString(16).padLeft(2, '0').toUpperCase()).join(' ');
+    return bytes
+        .map((byte) => byte.toRadixString(16).padLeft(2, '0').toUpperCase())
+        .join(' ');
   }
 
   static String previewBytes(List<int> bytes, {int maxBytes = 256}) {
-    final previewBytes = bytes.length > maxBytes ? bytes.take(maxBytes).toList() : bytes;
+    final previewBytes =
+        bytes.length > maxBytes ? bytes.take(maxBytes).toList() : bytes;
     final text = utf8.decode(previewBytes, allowMalformed: true);
     final suffix = bytes.length > maxBytes ? ' ...' : '';
     return '$text$suffix\nHEX ${bytesToHex(previewBytes)}$suffix';

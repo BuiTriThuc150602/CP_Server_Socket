@@ -65,10 +65,17 @@ class _DeviceConfigPageState extends State<DeviceConfigPage> {
               _buildField("BaudRate", baudRateController),
               _buildField("COM Name", comNameController),
               SizedBox(height: 20),
-              Text("Cấu hình Socket Server", style: Theme.of(context).textTheme.titleLarge),
+              Text(
+                "Cấu hình Socket Server",
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
               SizedBox(height: 10),
               _buildField("Server IP", serverIpController, isRequired: true),
-              _buildField("Server Port", serverPortController, isRequired: true),
+              _buildField(
+                "Server Port",
+                serverPortController,
+                isRequired: true,
+              ),
               SizedBox(height: 20),
               ElevatedButton(
                 onPressed: () async {
@@ -85,7 +92,10 @@ class _DeviceConfigPageState extends State<DeviceConfigPage> {
                     );
                     await _saveDevice(device);
 
-                    final socketServer = SocketServerInfo(serverIp: serverIpController.text, serverPort: serverPortController.text);
+                    final socketServer = SocketServerInfo(
+                      serverIp: serverIpController.text,
+                      serverPort: serverPortController.text,
+                    );
                     await _saveSocketServerInfo(socketServer);
 
                     if (!context.mounted) {
@@ -103,8 +113,26 @@ class _DeviceConfigPageState extends State<DeviceConfigPage> {
     );
   }
 
-  Widget _buildField(String label, TextEditingController controller, {bool isRequired = false}) {
-    return Padding(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12), child: TextFormField(controller: controller, decoration: InputDecoration(labelText: label, border: OutlineInputBorder()), validator: (v) => isRequired && (v == null || v.isEmpty) ? "Không được bỏ trống" : null));
+  Widget _buildField(
+    String label,
+    TextEditingController controller, {
+    bool isRequired = false,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      child: TextFormField(
+        controller: controller,
+        decoration: InputDecoration(
+          labelText: label,
+          border: OutlineInputBorder(),
+        ),
+        validator:
+            (v) =>
+                isRequired && (v == null || v.isEmpty)
+                    ? "Không được bỏ trống"
+                    : null,
+      ),
+    );
   }
 
   Future<void> _saveDevice(DeviceInfo device) async {

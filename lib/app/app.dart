@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 import 'package:socket_server/app/app_settings_controller.dart';
 import 'package:socket_server/app/module_registry.dart';
+import 'package:socket_server/l10n/app_localizations.dart';
 
 class SocketTestingToolsApp extends StatelessWidget {
   const SocketTestingToolsApp({super.key});
@@ -18,6 +20,14 @@ class SocketTestingToolsApp extends StatelessWidget {
             theme: _buildTheme(Brightness.light),
             darkTheme: _buildTheme(Brightness.dark),
             themeMode: settings.themeMode,
+            locale: settings.settings.locale,
+            localizationsDelegates: const [
+              AppLocalizations.delegate,
+              GlobalMaterialLocalizations.delegate,
+              GlobalWidgetsLocalizations.delegate,
+              GlobalCupertinoLocalizations.delegate,
+            ],
+            supportedLocales: AppLocalizations.supportedLocales,
             home: const ModuleHomeScreen(),
           );
         },
@@ -109,7 +119,7 @@ class _ModuleHomeScreenState extends State<ModuleHomeScreen> {
                 NavigationRailDestination(
                   icon: Icon(module.icon),
                   selectedIcon: Icon(module.selectedIcon),
-                  label: Text(module.shortTitle),
+                  label: Text(module.localizedShortTitle(context)),
                 ),
             ],
           ),
@@ -150,6 +160,7 @@ class _ModuleHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final selected = module;
     final settings = context.watch<AppSettingsController>();
+    final l10n = AppLocalizations.of(context)!;
     return Container(
       height: 64,
       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -167,15 +178,14 @@ class _ModuleHeader extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  selected?.title ?? 'Socket Testing Tools',
+                  selected?.localizedTitle(context) ?? l10n.appTitle,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w700,
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
                 Text(
-                  selected?.description ??
-                      'Choose a desktop testing module to begin.',
+                  selected?.localizedDescription(context) ?? l10n.chooseModule,
                   style: Theme.of(context).textTheme.bodySmall,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -204,6 +214,23 @@ class _ModuleHeader extends StatelessWidget {
             showSelectedIcon: false,
             onSelectionChanged: (value) {
               settings.setThemeMode(value.first);
+            },
+          ),
+          const SizedBox(width: 8),
+          SegmentedButton<String>(
+            segments: [
+              ButtonSegment(
+                value: 'system',
+                icon: const Icon(Icons.language),
+                label: Text(l10n.system),
+              ),
+              ButtonSegment(value: 'en', label: Text(l10n.english)),
+              ButtonSegment(value: 'vi', label: Text(l10n.vietnamese)),
+            ],
+            selected: {settings.localeCode},
+            showSelectedIcon: false,
+            onSelectionChanged: (value) {
+              settings.setLocaleCode(value.first);
             },
           ),
         ],
@@ -246,7 +273,7 @@ class _ModuleDashboard extends StatelessWidget {
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    module.title,
+                    module.localizedTitle(context),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
@@ -256,7 +283,7 @@ class _ModuleDashboard extends StatelessWidget {
                   const SizedBox(height: 6),
                   Expanded(
                     child: Text(
-                      module.description,
+                      module.localizedDescription(context),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),

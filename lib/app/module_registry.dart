@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:socket_server/l10n/app_localizations.dart';
+import 'package:socket_server/modules/api_lab/api_lab_screen.dart';
 import 'package:socket_server/modules/carparking/ui/carparking_module_screen.dart';
 import 'package:socket_server/modules/payload_studio/payload_studio_screen.dart';
 import 'package:socket_server/modules/protocol_bridge/protocol_bridge_screen.dart';
@@ -22,6 +24,48 @@ class TestingModule {
   final IconData icon;
   final IconData selectedIcon;
   final WidgetBuilder builder;
+
+  String localizedTitle(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    return switch (shortTitle) {
+      'CarParking' => l10n.carParkingTitle,
+      'TCP Lab' => l10n.tcpLabTitle,
+      'WebSocket' => l10n.webSocketTitle,
+      'Serial' => l10n.serialTitle,
+      'Bridge' => l10n.bridgeTitle,
+      'Payloads' => l10n.payloadStudioTitle,
+      'API' => l10n.apiLabTitle,
+      _ => title,
+    };
+  }
+
+  String localizedShortTitle(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    return switch (shortTitle) {
+      'CarParking' => l10n.carParkingShort,
+      'TCP Lab' => l10n.tcpLabShort,
+      'WebSocket' => l10n.webSocketShort,
+      'Serial' => l10n.serialShort,
+      'Bridge' => l10n.bridgeShort,
+      'Payloads' => l10n.payloadStudioShort,
+      'API' => l10n.apiLabShort,
+      _ => shortTitle,
+    };
+  }
+
+  String localizedDescription(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    return switch (shortTitle) {
+      'CarParking' => l10n.carParkingDescription,
+      'TCP Lab' => l10n.tcpLabDescription,
+      'WebSocket' => l10n.webSocketDescription,
+      'Serial' => l10n.serialDescription,
+      'Bridge' => l10n.bridgeDescription,
+      'Payloads' => l10n.payloadStudioDescription,
+      'API' => l10n.apiLabDescription,
+      _ => description,
+    };
+  }
 }
 
 class ModuleRegistry {
@@ -68,6 +112,15 @@ class ModuleRegistry {
       icon: Icons.account_tree_outlined,
       selectedIcon: Icons.account_tree,
       builder: (_) => const ProtocolBridgeScreen(),
+    ),
+    TestingModule(
+      title: 'API Lab',
+      shortTitle: 'API',
+      description:
+          'HTTP/API testing workspace with collections, environments, variables, and import/export.',
+      icon: Icons.api_outlined,
+      selectedIcon: Icons.api,
+      builder: (_) => const ApiLabScreen(),
     ),
     TestingModule(
       title: 'Payload Studio / Converter',

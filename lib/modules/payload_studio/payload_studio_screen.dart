@@ -39,15 +39,19 @@ class _PayloadStudioScreenState extends State<PayloadStudioScreen> {
   @override
   Widget build(BuildContext context) {
     return Shortcuts(
-      shortcuts: const {SingleActivator(LogicalKeyboardKey.enter, control: true): _RunPayloadOperationIntent()},
+      shortcuts: const {
+        SingleActivator(LogicalKeyboardKey.enter, control: true):
+            _RunPayloadOperationIntent(),
+      },
       child: Actions(
         actions: {
-          _RunPayloadOperationIntent: CallbackAction<_RunPayloadOperationIntent>(
-            onInvoke: (_) {
-              _runActiveOperation();
-              return null;
-            },
-          ),
+          _RunPayloadOperationIntent:
+              CallbackAction<_RunPayloadOperationIntent>(
+                onInvoke: (_) {
+                  _runActiveOperation();
+                  return null;
+                },
+              ),
         },
         child: ModuleWorkbench(
           header: _buildTopBar(),
@@ -55,9 +59,41 @@ class _PayloadStudioScreenState extends State<PayloadStudioScreen> {
             builder: (context, constraints) {
               final editors =
                   constraints.maxWidth < 900
-                      ? Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [_editor('Input', _input), const SizedBox(height: 16), _editor('Output', _output, readOnly: true)])
-                      : Row(crossAxisAlignment: CrossAxisAlignment.start, children: [Expanded(child: _editor('Input', _input)), const SizedBox(width: 16), Expanded(child: _editor('Output', _output, readOnly: true))]);
-              return ListView(padding: const EdgeInsets.all(24), children: [if (_status != null) Padding(padding: const EdgeInsets.only(bottom: 16), child: Text(_status ?? 'Unknown', style: TextStyle(color: Theme.of(context).colorScheme.primary, fontWeight: FontWeight.w500))), editors]);
+                      ? Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          _editor('Input', _input),
+                          const SizedBox(height: 16),
+                          _editor('Output', _output, readOnly: true),
+                        ],
+                      )
+                      : Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(child: _editor('Input', _input)),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: _editor('Output', _output, readOnly: true),
+                          ),
+                        ],
+                      );
+              return ListView(
+                padding: const EdgeInsets.all(24),
+                children: [
+                  if (_status != null)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 16),
+                      child: Text(
+                        _status ?? 'Unknown',
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.primary,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  editors,
+                ],
+              );
             },
           ),
         ),
@@ -74,7 +110,11 @@ class _PayloadStudioScreenState extends State<PayloadStudioScreen> {
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
             // Snippets
-            ActionChip(avatar: const Icon(Icons.snippet_folder, size: 18), label: const Text('Insert Snippet'), onPressed: _showSnippetMenu),
+            ActionChip(
+              avatar: const Icon(Icons.snippet_folder, size: 18),
+              label: const Text('Insert Snippet'),
+              onPressed: _showSnippetMenu,
+            ),
             const SizedBox(width: 8),
 
             // JSON Tools
@@ -87,8 +127,18 @@ class _PayloadStudioScreenState extends State<PayloadStudioScreen> {
                   _selectOperation(_PayloadOperation.jsonMinify);
                 }
               },
-              child: Chip(avatar: const Icon(Icons.code, size: 18), label: const Text('JSON Tools')),
-              itemBuilder: (context) => [const PopupMenuItem(value: 'pretty', child: Text('Pretty Print')), const PopupMenuItem(value: 'minify', child: Text('Minify'))],
+              child: Chip(
+                avatar: const Icon(Icons.code, size: 18),
+                label: const Text('JSON Tools'),
+              ),
+              itemBuilder:
+                  (context) => [
+                    const PopupMenuItem(
+                      value: 'pretty',
+                      child: Text('Pretty Print'),
+                    ),
+                    const PopupMenuItem(value: 'minify', child: Text('Minify')),
+                  ],
             ),
 
             // Encoding Tools
@@ -107,52 +157,129 @@ class _PayloadStudioScreenState extends State<PayloadStudioScreen> {
                   _selectOperation(_PayloadOperation.base64ToText);
                 }
               },
-              child: Chip(avatar: const Icon(Icons.transform, size: 18), label: const Text('Encoding')),
+              child: Chip(
+                avatar: const Icon(Icons.transform, size: 18),
+                label: const Text('Encoding'),
+              ),
               itemBuilder:
                   (context) => [
-                    const PopupMenuItem(value: 'text_hex', child: Text('Text → HEX')),
-                    const PopupMenuItem(value: 'hex_text', child: Text('HEX → Text')),
+                    const PopupMenuItem(
+                      value: 'text_hex',
+                      child: Text('Text → HEX'),
+                    ),
+                    const PopupMenuItem(
+                      value: 'hex_text',
+                      child: Text('HEX → Text'),
+                    ),
                     const PopupMenuDivider(),
-                    const PopupMenuItem(value: 'text_b64', child: Text('Text → Base64')),
-                    const PopupMenuItem(value: 'b64_text', child: Text('Base64 → Text')),
+                    const PopupMenuItem(
+                      value: 'text_b64',
+                      child: Text('Text → Base64'),
+                    ),
+                    const PopupMenuItem(
+                      value: 'b64_text',
+                      child: Text('Base64 → Text'),
+                    ),
                   ],
             ),
 
             // Number Converter
             PopupMenuButton<String>(
               onSelected: _handleNumberConversion,
-              child: Chip(avatar: const Icon(Icons.calculate, size: 18), label: const Text('Numbers')),
+              child: Chip(
+                avatar: const Icon(Icons.calculate, size: 18),
+                label: const Text('Numbers'),
+              ),
               itemBuilder:
                   (context) => [
-                    const PopupMenuItem(value: 'hex_dec', child: Text('HEX → DEC')),
-                    const PopupMenuItem(value: 'dec_hex', child: Text('DEC → HEX')),
-                    const PopupMenuItem(value: 'bin_dec', child: Text('BIN → DEC')),
-                    const PopupMenuItem(value: 'dec_bin', child: Text('DEC → BIN')),
-                    const PopupMenuItem(value: 'hex_bin', child: Text('HEX → BIN')),
-                    const PopupMenuItem(value: 'bin_hex', child: Text('BIN → HEX')),
+                    const PopupMenuItem(
+                      value: 'hex_dec',
+                      child: Text('HEX → DEC'),
+                    ),
+                    const PopupMenuItem(
+                      value: 'dec_hex',
+                      child: Text('DEC → HEX'),
+                    ),
+                    const PopupMenuItem(
+                      value: 'bin_dec',
+                      child: Text('BIN → DEC'),
+                    ),
+                    const PopupMenuItem(
+                      value: 'dec_bin',
+                      child: Text('DEC → BIN'),
+                    ),
+                    const PopupMenuItem(
+                      value: 'hex_bin',
+                      child: Text('HEX → BIN'),
+                    ),
+                    const PopupMenuItem(
+                      value: 'bin_hex',
+                      child: Text('BIN → HEX'),
+                    ),
                   ],
             ),
 
             PopupMenuButton<String>(
               onSelected: _handleUtility,
-              child: Chip(avatar: const Icon(Icons.functions, size: 18), label: const Text('Utilities')),
+              child: Chip(
+                avatar: const Icon(Icons.functions, size: 18),
+                label: const Text('Utilities'),
+              ),
               itemBuilder:
                   (context) => const [
-                    PopupMenuItem(value: 'xor', child: Text('XOR checksum from HEX')),
-                    PopupMenuItem(value: 'lrc', child: Text('LRC checksum from HEX')),
-                    PopupMenuItem(value: 'byte_length', child: Text('HEX byte length')),
-                    PopupMenuItem(value: 'utf8_length', child: Text('UTF-8 byte length')),
+                    PopupMenuItem(
+                      value: 'xor',
+                      child: Text('XOR checksum from HEX'),
+                    ),
+                    PopupMenuItem(
+                      value: 'lrc',
+                      child: Text('LRC checksum from HEX'),
+                    ),
+                    PopupMenuItem(
+                      value: 'byte_length',
+                      child: Text('HEX byte length'),
+                    ),
+                    PopupMenuItem(
+                      value: 'utf8_length',
+                      child: Text('UTF-8 byte length'),
+                    ),
                     PopupMenuDivider(),
-                    PopupMenuItem(value: 'unix_seconds', child: Text('Unix seconds')),
-                    PopupMenuItem(value: 'unix_millis', child: Text('Unix milliseconds')),
-                    PopupMenuItem(value: 'iso_local', child: Text('ISO local time')),
-                    PopupMenuItem(value: 'formatted_local', child: Text('Formatted local time')),
+                    PopupMenuItem(
+                      value: 'unix_seconds',
+                      child: Text('Unix seconds'),
+                    ),
+                    PopupMenuItem(
+                      value: 'unix_millis',
+                      child: Text('Unix milliseconds'),
+                    ),
+                    PopupMenuItem(
+                      value: 'iso_local',
+                      child: Text('ISO local time'),
+                    ),
+                    PopupMenuItem(
+                      value: 'formatted_local',
+                      child: Text('Formatted local time'),
+                    ),
                   ],
             ),
 
             const SizedBox(width: 8),
-            Chip(avatar: const Icon(Icons.bolt, size: 16), label: Text(_activeOperation?.label ?? 'Choose an operation first'), visualDensity: VisualDensity.compact),
-            Tooltip(message: 'Run selected operation (Ctrl+Enter)', child: FilledButton.icon(onPressed: _activeOperation == null ? null : _runActiveOperation, icon: const Icon(Icons.play_arrow, size: 18), label: const Text('Run'))),
+            Chip(
+              avatar: const Icon(Icons.bolt, size: 16),
+              label: Text(
+                _activeOperation?.label ?? 'Choose an operation first',
+              ),
+              visualDensity: VisualDensity.compact,
+            ),
+            Tooltip(
+              message: 'Run selected operation (Ctrl+Enter)',
+              child: FilledButton.icon(
+                onPressed:
+                    _activeOperation == null ? null : _runActiveOperation,
+                icon: const Icon(Icons.play_arrow, size: 18),
+                label: const Text('Run'),
+              ),
+            ),
             FilterChip(
               label: const Text('Auto-run'),
               selected: _autoRun,
@@ -165,9 +292,23 @@ class _PayloadStudioScreenState extends State<PayloadStudioScreen> {
               visualDensity: VisualDensity.compact,
             ),
             const SizedBox(width: 8),
-            IconButton.outlined(tooltip: 'Copy input', onPressed: () => Clipboard.setData(ClipboardData(text: _input.text)), icon: const Icon(Icons.input)),
-            IconButton.outlined(tooltip: 'Copy output', onPressed: () => Clipboard.setData(ClipboardData(text: _output.text)), icon: const Icon(Icons.copy)),
-            IconButton.outlined(tooltip: 'Swap input/output', onPressed: _swapInputOutput, icon: const Icon(Icons.swap_horiz)),
+            IconButton.outlined(
+              tooltip: 'Copy input',
+              onPressed:
+                  () => Clipboard.setData(ClipboardData(text: _input.text)),
+              icon: const Icon(Icons.input),
+            ),
+            IconButton.outlined(
+              tooltip: 'Copy output',
+              onPressed:
+                  () => Clipboard.setData(ClipboardData(text: _output.text)),
+              icon: const Icon(Icons.copy),
+            ),
+            IconButton.outlined(
+              tooltip: 'Swap input/output',
+              onPressed: _swapInputOutput,
+              icon: const Icon(Icons.swap_horiz),
+            ),
             IconButton.outlined(
               tooltip: 'Use output as input',
               onPressed: () {
@@ -179,14 +320,22 @@ class _PayloadStudioScreenState extends State<PayloadStudioScreen> {
               },
               icon: const Icon(Icons.arrow_back),
             ),
-            IconButton.outlined(tooltip: 'Clear input/output', onPressed: _clearEditors, icon: const Icon(Icons.clear_all)),
+            IconButton.outlined(
+              tooltip: 'Clear input/output',
+              onPressed: _clearEditors,
+              icon: const Icon(Icons.clear_all),
+            ),
           ],
         );
       },
     );
   }
 
-  Widget _editor(String title, TextEditingController controller, {bool readOnly = false}) {
+  Widget _editor(
+    String title,
+    TextEditingController controller, {
+    bool readOnly = false,
+  }) {
     return Card(
       margin: EdgeInsets.zero,
       child: Padding(
@@ -202,7 +351,18 @@ class _PayloadStudioScreenState extends State<PayloadStudioScreen> {
                 children: [
                   Text(title, style: Theme.of(context).textTheme.titleSmall),
                   const Spacer(),
-                  if (readOnly) IconButton(visualDensity: VisualDensity.compact, icon: const Icon(Icons.content_copy, size: 16), onPressed: () => Clipboard.setData(ClipboardData(text: controller.text)), tooltip: 'Copy') else const SizedBox(width: 40),
+                  if (readOnly)
+                    IconButton(
+                      visualDensity: VisualDensity.compact,
+                      icon: const Icon(Icons.content_copy, size: 16),
+                      onPressed:
+                          () => Clipboard.setData(
+                            ClipboardData(text: controller.text),
+                          ),
+                      tooltip: 'Copy',
+                    )
+                  else
+                    const SizedBox(width: 40),
                 ],
               ),
             ),
@@ -217,7 +377,13 @@ class _PayloadStudioScreenState extends State<PayloadStudioScreen> {
                 maxLines: null,
                 textAlignVertical: TextAlignVertical.top,
                 style: const TextStyle(fontFamily: 'monospace', fontSize: 13),
-                decoration: InputDecoration(filled: true, fillColor: readOnly ? Theme.of(context).colorScheme.surface : null, border: const OutlineInputBorder(), contentPadding: const EdgeInsets.all(12)),
+                decoration: InputDecoration(
+                  filled: true,
+                  fillColor:
+                      readOnly ? Theme.of(context).colorScheme.surface : null,
+                  border: const OutlineInputBorder(),
+                  contentPadding: const EdgeInsets.all(12),
+                ),
               ),
             ),
           ],
@@ -234,7 +400,13 @@ class _PayloadStudioScreenState extends State<PayloadStudioScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Padding(padding: EdgeInsets.all(16), child: Text('Insert Snippet', style: TextStyle(fontWeight: FontWeight.bold))),
+                const Padding(
+                  padding: EdgeInsets.all(16),
+                  child: Text(
+                    'Insert Snippet',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
                 ListTile(
                   leading: const Icon(Icons.wifi),
                   title: const Text('Connect Status'),
@@ -275,7 +447,8 @@ class _PayloadStudioScreenState extends State<PayloadStudioScreen> {
                   leading: const Icon(Icons.dns),
                   title: const Text('TCP JSON line'),
                   onTap: () {
-                    _input.text = '{"event":"ping","timestamp":${DateTime.now().millisecondsSinceEpoch}}\n';
+                    _input.text =
+                        '{"event":"ping","timestamp":${DateTime.now().millisecondsSinceEpoch}}\n';
                     Navigator.pop(context);
                   },
                 ),
@@ -302,7 +475,14 @@ class _PayloadStudioScreenState extends State<PayloadStudioScreen> {
   }
 
   void _handleNumberConversion(String value) {
-    final map = {'hex_dec': _PayloadOperation.hexToDecimal, 'dec_hex': _PayloadOperation.decimalToHex, 'bin_dec': _PayloadOperation.binaryToDecimal, 'dec_bin': _PayloadOperation.decimalToBinary, 'hex_bin': _PayloadOperation.hexToBinary, 'bin_hex': _PayloadOperation.binaryToHex};
+    final map = {
+      'hex_dec': _PayloadOperation.hexToDecimal,
+      'dec_hex': _PayloadOperation.decimalToHex,
+      'bin_dec': _PayloadOperation.binaryToDecimal,
+      'dec_bin': _PayloadOperation.decimalToBinary,
+      'hex_bin': _PayloadOperation.hexToBinary,
+      'bin_hex': _PayloadOperation.binaryToHex,
+    };
     final operation = map[value];
     if (operation != null) {
       _selectOperation(operation);
@@ -330,7 +510,8 @@ class _PayloadStudioScreenState extends State<PayloadStudioScreen> {
         _output.text = now.toIso8601String();
         setState(() => _status = 'Timestamp generated.');
       case 'formatted_local':
-        _output.text = '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')} ${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}:${now.second.toString().padLeft(2, '0')}';
+        _output.text =
+            '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')} ${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}:${now.second.toString().padLeft(2, '0')}';
         setState(() => _status = 'Timestamp generated.');
     }
   }
@@ -346,7 +527,10 @@ class _PayloadStudioScreenState extends State<PayloadStudioScreen> {
     if (_activeOperation == null) {
       return;
     }
-    _autoRunDebounce = Timer(const Duration(milliseconds: 400), _runActiveOperation);
+    _autoRunDebounce = Timer(
+      const Duration(milliseconds: 400),
+      _runActiveOperation,
+    );
   }
 
   void _selectOperation(_PayloadOperation operation) {
@@ -367,20 +551,54 @@ class _PayloadStudioScreenState extends State<PayloadStudioScreen> {
     return switch (operation) {
       _PayloadOperation.jsonPretty => PayloadCodec.prettyJson(_input.text),
       _PayloadOperation.jsonMinify => PayloadCodec.minifyJson(_input.text),
-      _PayloadOperation.textToHex => PayloadCodec.bytesToHex(utf8.encode(_input.text)),
-      _PayloadOperation.hexToText => utf8.decode(PayloadCodec.hexToBytes(_input.text), allowMalformed: true),
+      _PayloadOperation.textToHex => PayloadCodec.bytesToHex(
+        utf8.encode(_input.text),
+      ),
+      _PayloadOperation.hexToText => utf8.decode(
+        PayloadCodec.hexToBytes(_input.text),
+        allowMalformed: true,
+      ),
       _PayloadOperation.textToBase64 => base64Encode(utf8.encode(_input.text)),
-      _PayloadOperation.base64ToText => utf8.decode(base64Decode(_input.text), allowMalformed: true),
-      _PayloadOperation.hexToDecimal => _convertNumbers(_NumericBase.hex, _NumericBase.decimal),
-      _PayloadOperation.decimalToHex => _convertNumbers(_NumericBase.decimal, _NumericBase.hex),
-      _PayloadOperation.binaryToDecimal => _convertNumbers(_NumericBase.binary, _NumericBase.decimal),
-      _PayloadOperation.decimalToBinary => _convertNumbers(_NumericBase.decimal, _NumericBase.binary),
-      _PayloadOperation.hexToBinary => _convertNumbers(_NumericBase.hex, _NumericBase.binary),
-      _PayloadOperation.binaryToHex => _convertNumbers(_NumericBase.binary, _NumericBase.hex),
-      _PayloadOperation.xorChecksum => PayloadCodec.xorChecksum(PayloadCodec.hexToBytes(_input.text)).toRadixString(16).padLeft(2, '0').toUpperCase(),
-      _PayloadOperation.lrcChecksum => PayloadCodec.lrcChecksum(PayloadCodec.hexToBytes(_input.text)).toRadixString(16).padLeft(2, '0').toUpperCase(),
-      _PayloadOperation.hexByteLength => PayloadCodec.hexToBytes(_input.text).length.toString(),
-      _PayloadOperation.utf8ByteLength => utf8.encode(_input.text).length.toString(),
+      _PayloadOperation.base64ToText => utf8.decode(
+        base64Decode(_input.text),
+        allowMalformed: true,
+      ),
+      _PayloadOperation.hexToDecimal => _convertNumbers(
+        _NumericBase.hex,
+        _NumericBase.decimal,
+      ),
+      _PayloadOperation.decimalToHex => _convertNumbers(
+        _NumericBase.decimal,
+        _NumericBase.hex,
+      ),
+      _PayloadOperation.binaryToDecimal => _convertNumbers(
+        _NumericBase.binary,
+        _NumericBase.decimal,
+      ),
+      _PayloadOperation.decimalToBinary => _convertNumbers(
+        _NumericBase.decimal,
+        _NumericBase.binary,
+      ),
+      _PayloadOperation.hexToBinary => _convertNumbers(
+        _NumericBase.hex,
+        _NumericBase.binary,
+      ),
+      _PayloadOperation.binaryToHex => _convertNumbers(
+        _NumericBase.binary,
+        _NumericBase.hex,
+      ),
+      _PayloadOperation.xorChecksum =>
+        PayloadCodec.xorChecksum(
+          PayloadCodec.hexToBytes(_input.text),
+        ).toRadixString(16).padLeft(2, '0').toUpperCase(),
+      _PayloadOperation.lrcChecksum =>
+        PayloadCodec.lrcChecksum(
+          PayloadCodec.hexToBytes(_input.text),
+        ).toRadixString(16).padLeft(2, '0').toUpperCase(),
+      _PayloadOperation.hexByteLength =>
+        PayloadCodec.hexToBytes(_input.text).length.toString(),
+      _PayloadOperation.utf8ByteLength =>
+        utf8.encode(_input.text).length.toString(),
     };
   }
 
@@ -423,7 +641,15 @@ class _PayloadStudioScreenState extends State<PayloadStudioScreen> {
 
   // ... (Keep existing helper methods: _normalizeNumericInput, _connectStatusSnippet, etc.)
   String _normalizeNumericInput(String input, _NumericBase source) {
-    final chunks = input.trim().replaceAll('_', '').replaceAll(RegExp(r'[\r\n\t,;|]+'), ' ').split(RegExp(r'\s+')).where((chunk) => chunk.trim().isNotEmpty).map((chunk) => _normalizeNumericToken(chunk, source)).toList();
+    final chunks =
+        input
+            .trim()
+            .replaceAll('_', '')
+            .replaceAll(RegExp(r'[\r\n\t,;|]+'), ' ')
+            .split(RegExp(r'\s+'))
+            .where((chunk) => chunk.trim().isNotEmpty)
+            .map((chunk) => _normalizeNumericToken(chunk, source))
+            .toList();
     if (chunks.isEmpty) {
       throw const FormatException('Input is empty.');
     }
@@ -434,7 +660,11 @@ class _PayloadStudioScreenState extends State<PayloadStudioScreen> {
     var value = token.trim();
     switch (source) {
       case _NumericBase.hex:
-        value = value.replaceFirst(RegExp(r'^(0x|#)', caseSensitive: false), '').replaceFirst(RegExp(r'h$', caseSensitive: false), '').toUpperCase();
+        value =
+            value
+                .replaceFirst(RegExp(r'^(0x|#)', caseSensitive: false), '')
+                .replaceFirst(RegExp(r'h$', caseSensitive: false), '')
+                .toUpperCase();
         if (!RegExp(r'^[0-9A-F]+$').hasMatch(value)) {
           throw FormatException('Invalid HEX token: $token');
         }
@@ -444,7 +674,9 @@ class _PayloadStudioScreenState extends State<PayloadStudioScreen> {
           throw FormatException('Invalid decimal token: $token');
         }
       case _NumericBase.binary:
-        value = value.replaceFirst(RegExp(r'^0b', caseSensitive: false), '').replaceFirst(RegExp(r'b$', caseSensitive: false), '');
+        value = value
+            .replaceFirst(RegExp(r'^0b', caseSensitive: false), '')
+            .replaceFirst(RegExp(r'b$', caseSensitive: false), '');
         if (!RegExp(r'^[01]+$').hasMatch(value)) {
           throw FormatException('Invalid binary token: $token');
         }
@@ -453,13 +685,19 @@ class _PayloadStudioScreenState extends State<PayloadStudioScreen> {
   }
 
   List<BigInt> _parseNumericValues(String normalized, _NumericBase source) {
-    return normalized.split(' ').map((token) => BigInt.parse(token, radix: source.radix)).toList();
+    return normalized
+        .split(' ')
+        .map((token) => BigInt.parse(token, radix: source.radix))
+        .toList();
   }
 
   String _formatNumber(BigInt value, _NumericBase target) {
     final converted = value.toRadixString(target.radix);
     return switch (target) {
-      _NumericBase.hex => converted.length.isOdd ? '0${converted.toUpperCase()}' : converted.toUpperCase(),
+      _NumericBase.hex =>
+        converted.length.isOdd
+            ? '0${converted.toUpperCase()}'
+            : converted.toUpperCase(),
       _NumericBase.decimal => converted,
       _NumericBase.binary => converted,
     };
@@ -480,7 +718,12 @@ class _PayloadStudioScreenState extends State<PayloadStudioScreen> {
     final now = DateTime.now();
     return jsonEncode({
       'data': {
-        'cardInfo': {'cardId': 'CARD001', 'readerIndex': 1, 'readerName': 'Reader 1', 'time': now.toString()},
+        'cardInfo': {
+          'cardId': 'CARD001',
+          'readerIndex': 1,
+          'readerName': 'Reader 1',
+          'time': now.toString(),
+        },
         'deviceInfo': {'deviceId': 'DEVICE_001', 'protocolType': 'TCP'},
         'id': 'DEVICE_001',
       },
@@ -495,8 +738,22 @@ class _PayloadStudioScreenState extends State<PayloadStudioScreen> {
     return jsonEncode({
       'data': {
         'deviceInfo': {'deviceId': 'DEVICE_001', 'protocolType': 'TCP'},
-        'inputStatus': List.generate(8, (i) => {'inputIndex': i + 1, 'inputName': 'Input ${i + 1}', 'value': i == 0 ? 1 : 0}),
-        'relayStatus': List.generate(8, (i) => {'relayIndex': i + 1, 'relayName': 'Relay ${i + 1}', 'value': 0}),
+        'inputStatus': List.generate(
+          8,
+          (i) => {
+            'inputIndex': i + 1,
+            'inputName': 'Input ${i + 1}',
+            'value': i == 0 ? 1 : 0,
+          },
+        ),
+        'relayStatus': List.generate(
+          8,
+          (i) => {
+            'relayIndex': i + 1,
+            'relayName': 'Relay ${i + 1}',
+            'value': 0,
+          },
+        ),
         'id': 'DEVICE_001',
       },
       'eventType': 'iOStatus',

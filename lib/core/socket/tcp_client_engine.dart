@@ -11,7 +11,8 @@ class TcpClientEngine {
   StreamSubscription<List<int>>? _subscription;
   TcpClientConnectionState _state = TcpClientConnectionState.disconnected;
 
-  final _stateController = StreamController<TcpClientConnectionState>.broadcast();
+  final _stateController =
+      StreamController<TcpClientConnectionState>.broadcast();
   final _incomingController = StreamController<String>.broadcast();
   final _outgoingController = StreamController<String>.broadcast();
   final _errorController = StreamController<Object>.broadcast();
@@ -22,14 +23,26 @@ class TcpClientEngine {
   Stream<String> get outgoing => _outgoingController.stream;
   Stream<Object> get errors => _errorController.stream;
 
-  Future<void> connect(String host, int port, {Duration timeout = const Duration(seconds: 5)}) async {
+  Future<void> connect(
+    String host,
+    int port, {
+    Duration timeout = const Duration(seconds: 5),
+  }) async {
     await disconnect();
     _setState(TcpClientConnectionState.connecting);
     try {
       _validateEndpoint(host, port);
-      _socket = await Socket.connect(host, port).timeout(timeout, onTimeout: () => throw TimeoutException('TCP connect timeout after ${timeout.inSeconds}s: $host:$port'));
+      _socket = await Socket.connect(host, port).timeout(
+        timeout,
+        onTimeout:
+            () =>
+                throw TimeoutException(
+                  'TCP connect timeout after ${timeout.inSeconds}s: $host:$port',
+                ),
+      );
       _subscription = _socket!.listen(
-        (bytes) => _incomingController.add(utf8.decode(bytes, allowMalformed: true)),
+        (bytes) =>
+            _incomingController.add(utf8.decode(bytes, allowMalformed: true)),
         onDone: () {
           _socket = null;
           _setState(TcpClientConnectionState.disconnected);
