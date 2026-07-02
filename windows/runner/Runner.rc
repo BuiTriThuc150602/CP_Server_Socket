@@ -90,12 +90,12 @@ BEGIN
         BLOCK "040904e4"
         BEGIN
             VALUE "CompanyName", "thuc.dev" "\0"
-            VALUE "FileDescription", "TestDeck" "\0"
+            VALUE "FileDescription", "FluxLab" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "testdeck" "\0"
+            VALUE "InternalName", "fluxlab" "\0"
             VALUE "LegalCopyright", "Copyright (C) 2026 thuc.dev. All rights reserved." "\0"
-            VALUE "OriginalFilename", "testdeck.exe" "\0"
-            VALUE "ProductName", "TestDeck" "\0"
+            VALUE "OriginalFilename", "fluxlab.exe" "\0"
+            VALUE "ProductName", "FluxLab" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

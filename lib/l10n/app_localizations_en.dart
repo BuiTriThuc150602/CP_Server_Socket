@@ -9,7 +9,7 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
-  String get appTitle => 'TestDeck';
+  String get appTitle => 'FluxLab';
 
   @override
   String get chooseModule =>

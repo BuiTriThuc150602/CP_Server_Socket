@@ -3,7 +3,7 @@
   <trustInfo xmlns="urn:schemas-microsoft-com:asm.v3">
     <security>
       <requestedPrivileges>
-        <!-- TestDeck requests elevation because the interactive PTY terminal,
+        <!-- FluxLab requests elevation because the interactive PTY terminal,
              local networking, and serial tooling can need administrator rights
              on tester machines. For local development, this can be changed to
              level="asInvoker" if UAC elevation gets in the way. -->

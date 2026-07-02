@@ -5,439 +5,10 @@ import 'dart:math';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:testdeck/core/storage/module_config_repository.dart';
+import 'package:fluxlab/core/storage/module_config_repository.dart';
 
-enum ApiBodyType { none, raw, json, formUrlEncoded }
-
-class ApiKeyValue {
-  const ApiKeyValue({
-    required this.key,
-    required this.value,
-    this.enabled = true,
-    this.secret = false,
-    this.description = '',
-  });
-
-  factory ApiKeyValue.fromJson(Map<String, dynamic> json) {
-    return ApiKeyValue(
-      key: (json['key'] ?? '').toString(),
-      value: (json['value'] ?? '').toString(),
-      enabled: json['enabled'] != false,
-      secret: json['secret'] == true,
-      description: (json['description'] ?? '').toString(),
-    );
-  }
-
-  final String key;
-  final String value;
-  final bool enabled;
-  final bool secret;
-  final String description;
-
-  Map<String, dynamic> toJson() {
-    return {
-      'key': key,
-      'value': value,
-      'enabled': enabled,
-      'secret': secret,
-      'description': description,
-    };
-  }
-
-  ApiKeyValue copyWith({
-    String? key,
-    String? value,
-    bool? enabled,
-    bool? secret,
-    String? description,
-  }) {
-    return ApiKeyValue(
-      key: key ?? this.key,
-      value: value ?? this.value,
-      enabled: enabled ?? this.enabled,
-      secret: secret ?? this.secret,
-      description: description ?? this.description,
-    );
-  }
-}
-
-class ApiFolder {
-  const ApiFolder({
-    required this.id,
-    required this.collectionId,
-    this.parentId,
-    required this.name,
-    required this.sortOrder,
-  });
-
-  factory ApiFolder.fromJson(Map<String, dynamic> json) {
-    return ApiFolder(
-      id: (json['id'] ?? _newId('folder')).toString(),
-      collectionId: (json['collectionId'] ?? '').toString(),
-      parentId: json['parentId']?.toString(),
-      name: (json['name'] ?? 'Folder').toString(),
-      sortOrder: _intValue(json['sortOrder'], 0),
-    );
-  }
-
-  final String id;
-  final String collectionId;
-  final String? parentId;
-  final String name;
-  final int sortOrder;
-
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'collectionId': collectionId,
-      'parentId': parentId,
-      'name': name,
-      'sortOrder': sortOrder,
-    };
-  }
-
-  ApiFolder copyWith({
-    String? id,
-    String? collectionId,
-    Object? parentId = _notSet,
-    String? name,
-    int? sortOrder,
-  }) {
-    return ApiFolder(
-      id: id ?? this.id,
-      collectionId: collectionId ?? this.collectionId,
-      parentId:
-          identical(parentId, _notSet) ? this.parentId : parentId as String?,
-      name: name ?? this.name,
-      sortOrder: sortOrder ?? this.sortOrder,
-    );
-  }
-}
-
-class ApiRequest {
-  const ApiRequest({
-    required this.id,
-    required this.collectionId,
-    this.folderId,
-    required this.name,
-    required this.method,
-    required this.url,
-    required this.headers,
-    required this.queryParams,
-    required this.bodyType,
-    required this.body,
-    this.authType = 'none',
-    this.authToken = '',
-    this.authUsername = '',
-    this.authPassword = '',
-    required this.createdAt,
-    required this.updatedAt,
-  });
-
-  factory ApiRequest.defaults(String collectionId) {
-    final now = DateTime.now();
-    return ApiRequest(
-      id: _newId('request'),
-      collectionId: collectionId,
-      name: 'New request',
-      method: 'GET',
-      url: 'https://httpbin.org/get',
-      headers: _defaultRequestHeaders(),
-      queryParams: const [],
-      bodyType: ApiBodyType.none,
-      body: '',
-      createdAt: now,
-      updatedAt: now,
-    );
-  }
-
-  factory ApiRequest.fromJson(Map<String, dynamic> json) {
-    final now = DateTime.now();
-    return ApiRequest(
-      id: (json['id'] ?? _newId('request')).toString(),
-      collectionId: (json['collectionId'] ?? '').toString(),
-      folderId: json['folderId']?.toString(),
-      name: (json['name'] ?? 'Request').toString(),
-      method: (json['method'] ?? 'GET').toString().toUpperCase(),
-      url: (json['url'] ?? '').toString(),
-      headers: _keyValues(json['headers']),
-      queryParams: _keyValues(json['queryParams']),
-      bodyType: _bodyType(json['bodyType']),
-      body: (json['body'] ?? '').toString(),
-      authType: (json['authType'] ?? 'none').toString(),
-      authToken: (json['authToken'] ?? '').toString(),
-      authUsername: (json['authUsername'] ?? '').toString(),
-      authPassword: (json['authPassword'] ?? '').toString(),
-      createdAt: DateTime.tryParse((json['createdAt'] ?? '').toString()) ?? now,
-      updatedAt: DateTime.tryParse((json['updatedAt'] ?? '').toString()) ?? now,
-    );
-  }
-
-  final String id;
-  final String collectionId;
-  final String? folderId;
-  final String name;
-  final String method;
-  final String url;
-  final List<ApiKeyValue> headers;
-  final List<ApiKeyValue> queryParams;
-  final ApiBodyType bodyType;
-  final String body;
-  final String authType;
-  final String authToken;
-  final String authUsername;
-  final String authPassword;
-  final DateTime createdAt;
-  final DateTime updatedAt;
-
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'collectionId': collectionId,
-      'folderId': folderId,
-      'name': name,
-      'method': method,
-      'url': url,
-      'headers': headers.map((item) => item.toJson()).toList(),
-      'queryParams': queryParams.map((item) => item.toJson()).toList(),
-      'bodyType': bodyType.name,
-      'body': body,
-      'authType': authType,
-      'authToken': authToken,
-      'authUsername': authUsername,
-      'authPassword': authPassword,
-      'createdAt': createdAt.toIso8601String(),
-      'updatedAt': updatedAt.toIso8601String(),
-    };
-  }
-
-  ApiRequest copyWith({
-    String? id,
-    String? collectionId,
-    Object? folderId = _notSet,
-    String? name,
-    String? method,
-    String? url,
-    List<ApiKeyValue>? headers,
-    List<ApiKeyValue>? queryParams,
-    ApiBodyType? bodyType,
-    String? body,
-    String? authType,
-    String? authToken,
-    String? authUsername,
-    String? authPassword,
-    DateTime? createdAt,
-    DateTime? updatedAt,
-  }) {
-    return ApiRequest(
-      id: id ?? this.id,
-      collectionId: collectionId ?? this.collectionId,
-      folderId:
-          identical(folderId, _notSet) ? this.folderId : folderId as String?,
-      name: name ?? this.name,
-      method: method ?? this.method,
-      url: url ?? this.url,
-      headers: headers ?? this.headers,
-      queryParams: queryParams ?? this.queryParams,
-      bodyType: bodyType ?? this.bodyType,
-      body: body ?? this.body,
-      authType: authType ?? this.authType,
-      authToken: authToken ?? this.authToken,
-      authUsername: authUsername ?? this.authUsername,
-      authPassword: authPassword ?? this.authPassword,
-      createdAt: createdAt ?? this.createdAt,
-      updatedAt: updatedAt ?? this.updatedAt,
-    );
-  }
-}
-
-class ApiCollection {
-  const ApiCollection({
-    required this.id,
-    required this.name,
-    required this.folders,
-    required this.requests,
-    required this.createdAt,
-    required this.updatedAt,
-  });
-
-  factory ApiCollection.defaults() {
-    final now = DateTime.now();
-    final id = _newId('collection');
-    return ApiCollection(
-      id: id,
-      name: 'Local API Collection',
-      folders: const [],
-      requests: [ApiRequest.defaults(id)],
-      createdAt: now,
-      updatedAt: now,
-    );
-  }
-
-  factory ApiCollection.fromJson(Map<String, dynamic> json) {
-    final now = DateTime.now();
-    final id = (json['id'] ?? _newId('collection')).toString();
-    return ApiCollection(
-      id: id,
-      name: (json['name'] ?? 'Collection').toString(),
-      folders: _maps(json['folders']).map(ApiFolder.fromJson).toList(),
-      requests:
-          _maps(json['requests'])
-              .map(ApiRequest.fromJson)
-              .map(
-                (request) =>
-                    request.collectionId.isEmpty
-                        ? request.copyWith(collectionId: id)
-                        : request,
-              )
-              .toList(),
-      createdAt: DateTime.tryParse((json['createdAt'] ?? '').toString()) ?? now,
-      updatedAt: DateTime.tryParse((json['updatedAt'] ?? '').toString()) ?? now,
-    );
-  }
-
-  final String id;
-  final String name;
-  final List<ApiFolder> folders;
-  final List<ApiRequest> requests;
-  final DateTime createdAt;
-  final DateTime updatedAt;
-
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'name': name,
-      'folders': folders.map((folder) => folder.toJson()).toList(),
-      'requests': requests.map((request) => request.toJson()).toList(),
-      'createdAt': createdAt.toIso8601String(),
-      'updatedAt': updatedAt.toIso8601String(),
-    };
-  }
-
-  ApiCollection copyWith({
-    String? id,
-    String? name,
-    List<ApiFolder>? folders,
-    List<ApiRequest>? requests,
-    DateTime? updatedAt,
-  }) {
-    return ApiCollection(
-      id: id ?? this.id,
-      name: name ?? this.name,
-      folders: folders ?? this.folders,
-      requests: requests ?? this.requests,
-      createdAt: createdAt,
-      updatedAt: updatedAt ?? this.updatedAt,
-    );
-  }
-}
-
-class ApiEnvironment {
-  const ApiEnvironment({
-    required this.id,
-    required this.name,
-    required this.variables,
-  });
-
-  factory ApiEnvironment.fromJson(Map<String, dynamic> json) {
-    return ApiEnvironment(
-      id: (json['id'] ?? _newId('env')).toString(),
-      name: (json['name'] ?? 'Environment').toString(),
-      variables: _keyValues(json['variables']),
-    );
-  }
-
-  final String id;
-  final String name;
-  final List<ApiKeyValue> variables;
-
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'name': name,
-      'variables': variables.map((item) => item.toJson()).toList(),
-    };
-  }
-}
-
-class ApiResponseSnapshot {
-  const ApiResponseSnapshot({
-    required this.statusCode,
-    required this.reasonPhrase,
-    required this.durationMs,
-    required this.responseHeaders,
-    required this.bodyText,
-    required this.sizeBytes,
-    required this.receivedAt,
-  });
-
-  final int? statusCode;
-  final String reasonPhrase;
-  final int durationMs;
-  final Map<String, List<String>> responseHeaders;
-  final String bodyText;
-  final int sizeBytes;
-  final DateTime receivedAt;
-
-  Map<String, dynamic> toJson() {
-    return {
-      'statusCode': statusCode,
-      'reasonPhrase': reasonPhrase,
-      'durationMs': durationMs,
-      'responseHeaders': responseHeaders,
-      'bodyText': bodyText,
-      'sizeBytes': sizeBytes,
-      'receivedAt': receivedAt.toIso8601String(),
-    };
-  }
-}
-
-class ApiHistoryEntry {
-  const ApiHistoryEntry({
-    required this.id,
-    required this.requestId,
-    required this.requestSnapshot,
-    required this.responseSnapshot,
-  });
-
-  factory ApiHistoryEntry.fromJson(Map<String, dynamic> json) {
-    return ApiHistoryEntry(
-      id: (json['id'] ?? _newId('history')).toString(),
-      requestId: (json['requestId'] ?? '').toString(),
-      requestSnapshot: ApiRequest.fromJson(_map(json['requestSnapshot'])),
-      responseSnapshot: ApiResponseSnapshot(
-        statusCode: _nullableInt(_map(json['responseSnapshot'])['statusCode']),
-        reasonPhrase:
-            (_map(json['responseSnapshot'])['reasonPhrase'] ?? '').toString(),
-        durationMs: _intValue(_map(json['responseSnapshot'])['durationMs'], 0),
-        responseHeaders: _headersMap(
-          _map(json['responseSnapshot'])['responseHeaders'],
-        ),
-        bodyText: (_map(json['responseSnapshot'])['bodyText'] ?? '').toString(),
-        sizeBytes: _intValue(_map(json['responseSnapshot'])['sizeBytes'], 0),
-        receivedAt:
-            DateTime.tryParse(
-              (_map(json['responseSnapshot'])['receivedAt'] ?? '').toString(),
-            ) ??
-            DateTime.now(),
-      ),
-    );
-  }
-
-  final String id;
-  final String requestId;
-  final ApiRequest requestSnapshot;
-  final ApiResponseSnapshot responseSnapshot;
-
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'requestId': requestId,
-      'requestSnapshot': requestSnapshot.toJson(),
-      'responseSnapshot': responseSnapshot.toJson(),
-    };
-  }
-}
+part 'models/api_models.dart';
+part 'services/api_lab_helpers.dart';
 
 class ApiLabScreen extends StatefulWidget {
   const ApiLabScreen({super.key});
@@ -553,13 +124,31 @@ class _ApiLabScreenState extends State<ApiLabScreen> {
   }
 
   Widget _topBar() {
+    final collection = _selectedCollection;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      height: 44,
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
       color: Theme.of(context).colorScheme.surfaceContainerHighest,
       child: Row(
         children: [
+          Icon(
+            Icons.api,
+            size: 18,
+            color: Theme.of(context).colorScheme.primary,
+          ),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(
+              collection?.name ?? 'API workspace',
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(
+                context,
+              ).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w800),
+            ),
+          ),
+          const SizedBox(width: 12),
           SizedBox(
-            width: 220,
+            width: 210,
             child: DropdownButtonFormField<String?>(
               initialValue: _selectedEnvironmentId,
               isDense: true,
@@ -579,22 +168,43 @@ class _ApiLabScreenState extends State<ApiLabScreen> {
             ),
           ),
           const SizedBox(width: 8),
-          OutlinedButton.icon(
-            onPressed: _showEnvironmentDialog,
-            icon: const Icon(Icons.tune, size: 18),
-            label: const Text('Variables'),
-          ),
-          const SizedBox(width: 8),
-          OutlinedButton.icon(
-            onPressed: _importDialog,
-            icon: const Icon(Icons.file_upload, size: 18),
-            label: const Text('Import'),
-          ),
-          const SizedBox(width: 8),
-          OutlinedButton.icon(
-            onPressed: _exportDialog,
-            icon: const Icon(Icons.file_download, size: 18),
-            label: const Text('Export'),
+          PopupMenuButton<String>(
+            tooltip: 'API workspace menu',
+            icon: const Icon(Icons.more_horiz),
+            onSelected: (value) {
+              switch (value) {
+                case 'env':
+                  _showEnvironmentDialog();
+                case 'import':
+                  _importDialog();
+                case 'export':
+                  _exportDialog();
+                case 'rename_collection':
+                  _renameCollection();
+                case 'delete_collection':
+                  _deleteCollection();
+              }
+            },
+            itemBuilder:
+                (context) => [
+                  const PopupMenuItem(
+                    value: 'env',
+                    child: Text('Manage environments'),
+                  ),
+                  const PopupMenuDivider(),
+                  const PopupMenuItem(value: 'import', child: Text('Import')),
+                  const PopupMenuItem(value: 'export', child: Text('Export')),
+                  const PopupMenuDivider(),
+                  const PopupMenuItem(
+                    value: 'rename_collection',
+                    child: Text('Rename collection'),
+                  ),
+                  PopupMenuItem(
+                    enabled: _collections.length > 1,
+                    value: 'delete_collection',
+                    child: const Text('Delete collection'),
+                  ),
+                ],
           ),
           const Spacer(),
           if (_status != null)
@@ -661,23 +271,33 @@ class _ApiLabScreenState extends State<ApiLabScreen> {
           child: Row(
             children: [
               Expanded(
-                child: FilledButton.icon(
-                  onPressed: () => _createRequest(folderId: _selectedFolderId),
-                  icon: const Icon(Icons.add, size: 18),
-                  label: const Text('Request'),
+                child: SizedBox(
+                  height: 34,
+                  child: FilledButton.icon(
+                    onPressed:
+                        () => _createRequest(folderId: _selectedFolderId),
+                    icon: const Icon(Icons.add, size: 18),
+                    label: const Text('+ Request', maxLines: 1),
+                  ),
                 ),
               ),
               const SizedBox(width: 8),
-              OutlinedButton.icon(
-                onPressed: _createFolder,
-                icon: const Icon(Icons.folder_open, size: 18),
-                label: const Text('Folder'),
+              SizedBox(
+                height: 34,
+                child: OutlinedButton.icon(
+                  onPressed: _createFolder,
+                  icon: const Icon(Icons.folder_open, size: 18),
+                  label: const Text('Folder', maxLines: 1),
+                ),
               ),
               const SizedBox(width: 8),
-              OutlinedButton.icon(
-                onPressed: _runCollection,
-                icon: const Icon(Icons.playlist_play, size: 18),
-                label: Text(_runnerActive ? 'Stop' : 'Run all'),
+              SizedBox(
+                height: 34,
+                child: OutlinedButton.icon(
+                  onPressed: _runCollection,
+                  icon: const Icon(Icons.playlist_play, size: 18),
+                  label: Text(_runnerActive ? 'Stop' : 'Run all', maxLines: 1),
+                ),
               ),
             ],
           ),
@@ -742,6 +362,11 @@ class _ApiLabScreenState extends State<ApiLabScreen> {
             tooltip: 'Rename folder',
             icon: const Icon(Icons.edit_outlined, size: 18),
             onPressed: () => _renameFolder(folder),
+          ),
+          IconButton(
+            tooltip: 'Delete folder',
+            icon: const Icon(Icons.delete_outline, size: 18),
+            onPressed: () => _deleteFolder(folder),
           ),
           IconButton(
             tooltip: 'Add request',
@@ -1146,7 +771,14 @@ class _ApiLabScreenState extends State<ApiLabScreen> {
                       )
                       .toList(),
               onChanged:
-                  (value) => setState(() => _bodyType = value ?? _bodyType),
+                  (value) => setState(() {
+                    _bodyType = value ?? _bodyType;
+                    if (_bodyType == ApiBodyType.json &&
+                        _body.text.trim().isEmpty &&
+                        const {'POST', 'PUT', 'PATCH'}.contains(_method)) {
+                      _body.text = '{}';
+                    }
+                  }),
               decoration: const InputDecoration(labelText: 'Body type'),
             ),
           ),
@@ -1826,10 +1458,12 @@ class _ApiLabScreenState extends State<ApiLabScreen> {
       'timestampMs': '${now.millisecondsSinceEpoch}',
       'isoTime': now.toIso8601String(),
       'uuid': _uuidLike(),
+      'appVersion': '1.0.0',
       r'$timestamp': '${now.millisecondsSinceEpoch ~/ 1000}',
       r'$timestampMs': '${now.millisecondsSinceEpoch}',
       r'$isoTime': now.toIso8601String(),
       r'$uuid': _uuidLike(),
+      r'$appVersion': '1.0.0',
     };
   }
 
@@ -1840,8 +1474,14 @@ class _ApiLabScreenState extends State<ApiLabScreen> {
     });
   }
 
-  void _createCollection() {
-    final collection = ApiCollection.defaults();
+  Future<void> _createCollection() async {
+    final name = await _promptText(
+      'Create collection',
+      'Collection name',
+      initial: 'Local API Collection',
+    );
+    if (name == null || name.isEmpty) return;
+    final collection = ApiCollection.defaults().copyWith(name: name);
     setState(() {
       _collections = [..._collections, collection];
       _selectedCollectionId = collection.id;
@@ -1865,6 +1505,65 @@ class _ApiLabScreenState extends State<ApiLabScreen> {
       ];
       _syncEditors();
     });
+  }
+
+  Future<void> _renameCollection() async {
+    final collection = _selectedCollection;
+    if (collection == null) return;
+    final name = await _promptText(
+      'Rename collection',
+      'Collection name',
+      initial: collection.name,
+    );
+    if (name == null || name.isEmpty) return;
+    _collections = [
+      for (final item in _collections)
+        if (item.id == collection.id)
+          collection.copyWith(name: name, updatedAt: DateTime.now())
+        else
+          item,
+    ];
+    setState(() {});
+    unawaited(_saveWorkspace());
+  }
+
+  Future<void> _deleteCollection() async {
+    final collection = _selectedCollection;
+    if (collection == null || _collections.length <= 1) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Delete collection?'),
+            content: Text(
+              'Delete "${collection.name}" and all folders, requests, and history references?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Delete'),
+              ),
+            ],
+          ),
+    );
+    if (confirmed != true) return;
+    final next =
+        _collections.where((item) => item.id != collection.id).toList();
+    setState(() {
+      _collections = next;
+      _selectedCollectionId = next.first.id;
+      _selectedRequestId = next.first.requests.firstOrNull?.id;
+      _selectedFolderId = null;
+      _openRequestIds = [
+        if (next.first.requests.firstOrNull case final request?) request.id,
+      ];
+      _syncEditors();
+    });
+    unawaited(_saveWorkspace());
   }
 
   void _createRequest({String? folderId}) {
@@ -1969,6 +1668,92 @@ class _ApiLabScreenState extends State<ApiLabScreen> {
     ];
     setState(() {});
     unawaited(_saveWorkspace());
+  }
+
+  Future<void> _deleteFolder(ApiFolder folder) async {
+    final collection = _selectedCollection;
+    if (collection == null) return;
+    final action = await showDialog<String>(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: Text('Delete folder "${folder.name}"?'),
+            content: const Text(
+              'Choose what should happen to requests inside this folder and child folders.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel'),
+              ),
+              OutlinedButton(
+                onPressed: () => Navigator.pop(context, 'move'),
+                child: const Text('Move requests to root'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(context, 'delete'),
+                child: const Text('Delete child requests'),
+              ),
+            ],
+          ),
+    );
+    if (action == null) return;
+    final folderIds = _folderAndDescendants(collection, folder.id);
+    final requests =
+        collection.requests
+            .where((request) {
+              if (!folderIds.contains(request.folderId)) return true;
+              return action == 'move';
+            })
+            .map((request) {
+              if (folderIds.contains(request.folderId) && action == 'move') {
+                return request.copyWith(folderId: null);
+              }
+              return request;
+            })
+            .toList();
+    final requestIds = requests.map((request) => request.id).toSet();
+    _collections = [
+      for (final item in _collections)
+        if (item.id == collection.id)
+          collection.copyWith(
+            folders:
+                collection.folders
+                    .where((item) => !folderIds.contains(item.id))
+                    .toList(),
+            requests: requests,
+            updatedAt: DateTime.now(),
+          )
+        else
+          item,
+    ];
+    setState(() {
+      _selectedFolderId = null;
+      _openRequestIds =
+          _openRequestIds.where((id) => requestIds.contains(id)).toList();
+      if (_selectedRequestId != null &&
+          !requestIds.contains(_selectedRequestId)) {
+        _selectedRequestId = requests.firstOrNull?.id;
+      }
+      _syncEditors();
+    });
+    unawaited(_saveWorkspace());
+  }
+
+  Set<String> _folderAndDescendants(ApiCollection collection, String folderId) {
+    final ids = <String>{folderId};
+    var changed = true;
+    while (changed) {
+      changed = false;
+      for (final folder in collection.folders) {
+        if (folder.parentId != null &&
+            ids.contains(folder.parentId) &&
+            ids.add(folder.id)) {
+          changed = true;
+        }
+      }
+    }
+    return ids;
   }
 
   void _duplicateRequest() {
@@ -2742,8 +2527,8 @@ class _ApiLabScreenState extends State<ApiLabScreen> {
       ),
       ApiKeyValue(
         key: 'User-Agent',
-        value: 'TestDeck/1.0.0',
-        description: 'Identify TestDeck requests.',
+        value: 'FluxLab/{{appVersion}}',
+        description: 'Identify FluxLab requests.',
       ),
       ApiKeyValue(
         key: 'X-Request-Id',
@@ -2818,215 +2603,5 @@ class _ApiLabScreenState extends State<ApiLabScreen> {
       createdAt: DateTime.now(),
       updatedAt: DateTime.now(),
     );
-  }
-}
-
-class _ResolvedRequest {
-  const _ResolvedRequest({
-    required this.url,
-    required this.queryParameters,
-    required this.headers,
-    required this.data,
-  });
-
-  final String url;
-  final Map<String, String> queryParameters;
-  final Map<String, String> headers;
-  final Object? data;
-}
-
-const Object _notSet = Object();
-
-List<ApiKeyValue> _defaultRequestHeaders() {
-  return const [
-    ApiKeyValue(
-      key: 'Accept',
-      value: 'application/json',
-      enabled: true,
-      description: 'Default JSON response preference.',
-    ),
-    ApiKeyValue(
-      key: 'Content-Type',
-      value: 'application/json',
-      enabled: false,
-      description: 'Enable for JSON request bodies.',
-    ),
-    ApiKeyValue(
-      key: 'Authorization',
-      value: 'Bearer {{token}}',
-      enabled: false,
-      description: 'Enable and define token in an environment.',
-    ),
-  ];
-}
-
-Color _methodColor(String method) {
-  return switch (method.toUpperCase()) {
-    'GET' => const Color(0xFF059669),
-    'POST' => const Color(0xFF2563EB),
-    'PUT' => const Color(0xFFD97706),
-    'PATCH' => const Color(0xFF7C3AED),
-    'DELETE' => const Color(0xFFDC2626),
-    _ => const Color(0xFF475569),
-  };
-}
-
-Color _statusColor(int? statusCode) {
-  if (statusCode == null) return const Color(0xFFDC2626);
-  if (statusCode >= 200 && statusCode < 300) return const Color(0xFF059669);
-  if (statusCode >= 300 && statusCode < 400) return const Color(0xFF2563EB);
-  if (statusCode >= 400 && statusCode < 500) return const Color(0xFFD97706);
-  return const Color(0xFFDC2626);
-}
-
-String _previewText(String text) {
-  final pretty = _prettyJson(text);
-  if (pretty.length <= 12000) return pretty;
-  return '${pretty.substring(0, 12000)}\n\n...preview truncated...';
-}
-
-List<List<String>> _parseCsv(String text) {
-  final rows = <List<String>>[];
-  final current = <String>[];
-  final cell = StringBuffer();
-  var inQuotes = false;
-  for (var i = 0; i < text.length; i++) {
-    final char = text[i];
-    final next = i + 1 < text.length ? text[i + 1] : '';
-    if (char == '"' && inQuotes && next == '"') {
-      cell.write('"');
-      i++;
-    } else if (char == '"') {
-      inQuotes = !inQuotes;
-    } else if (char == ',' && !inQuotes) {
-      current.add(cell.toString());
-      cell.clear();
-    } else if ((char == '\n' || char == '\r') && !inQuotes) {
-      if (char == '\r' && next == '\n') i++;
-      current.add(cell.toString());
-      cell.clear();
-      if (current.any((value) => value.trim().isNotEmpty)) {
-        rows.add([...current]);
-      }
-      current.clear();
-    } else {
-      cell.write(char);
-    }
-  }
-  current.add(cell.toString());
-  if (current.any((value) => value.trim().isNotEmpty)) rows.add(current);
-  return rows;
-}
-
-String _shellQuote(String value) {
-  return "'${value.replaceAll("'", r"'\''")}'";
-}
-
-List<String> _splitCommandLine(String input) {
-  final tokens = <String>[];
-  final current = StringBuffer();
-  String? quote;
-  for (var i = 0; i < input.length; i++) {
-    final char = input[i];
-    if ((char == '"' || char == "'") && quote == null) {
-      quote = char;
-    } else if (char == quote) {
-      quote = null;
-    } else if (char.trim().isEmpty && quote == null) {
-      if (current.isNotEmpty) {
-        tokens.add(current.toString());
-        current.clear();
-      }
-    } else if (char == '\\' && i + 1 < input.length) {
-      current.write(input[++i]);
-    } else {
-      current.write(char);
-    }
-  }
-  if (current.isNotEmpty) tokens.add(current.toString());
-  return tokens;
-}
-
-String _newId(String prefix) {
-  return '${prefix}_${DateTime.now().microsecondsSinceEpoch}_${Random().nextInt(99999)}';
-}
-
-int _intValue(Object? value, int fallback) {
-  if (value is int) return value;
-  if (value is num) return value.toInt();
-  return int.tryParse(value?.toString() ?? '') ?? fallback;
-}
-
-int? _nullableInt(Object? value) {
-  if (value == null) return null;
-  return _intValue(value, 0);
-}
-
-ApiBodyType _bodyType(Object? value) {
-  return ApiBodyType.values
-          .where((type) => type.name == value?.toString())
-          .firstOrNull ??
-      ApiBodyType.none;
-}
-
-List<Map<String, dynamic>> _maps(Object? value) {
-  if (value is! List) return const [];
-  return value
-      .whereType<Map>()
-      .map((item) => Map<String, dynamic>.from(item))
-      .toList();
-}
-
-Map<String, dynamic> _map(Object? value) {
-  if (value is Map<String, dynamic>) return value;
-  if (value is Map) return Map<String, dynamic>.from(value);
-  return const {};
-}
-
-List<ApiKeyValue> _keyValues(Object? value) {
-  return _maps(value).map(ApiKeyValue.fromJson).toList();
-}
-
-Map<String, List<String>> _headersMap(Object? value) {
-  final map = _map(value);
-  return {
-    for (final entry in map.entries)
-      entry.key:
-          (entry.value is List
-              ? (entry.value as List).map((item) => item.toString()).toList()
-              : [entry.value.toString()]),
-  };
-}
-
-String _responseText(Object? data) {
-  if (data == null) return '';
-  if (data is String) return data;
-  try {
-    return const JsonEncoder.withIndent('  ').convert(data);
-  } catch (_) {
-    return data.toString();
-  }
-}
-
-String _prettyJson(String text) {
-  try {
-    return const JsonEncoder.withIndent('  ').convert(jsonDecode(text));
-  } catch (_) {
-    return text;
-  }
-}
-
-String _uuidLike() {
-  final random = Random();
-  String hex(int length) =>
-      List.generate(length, (_) => random.nextInt(16).toRadixString(16)).join();
-  return '${hex(8)}-${hex(4)}-${hex(4)}-${hex(4)}-${hex(12)}';
-}
-
-extension _FirstOrNull<T> on Iterable<T> {
-  T? get firstOrNull {
-    final iterator = this.iterator;
-    if (iterator.moveNext()) return iterator.current;
-    return null;
   }
 }

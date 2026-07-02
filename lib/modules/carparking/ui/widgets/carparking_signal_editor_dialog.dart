@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:testdeck/modules/carparking/models/carparking_models.dart';
-import 'package:testdeck/modules/carparking/services/carparking_controller.dart';
-import 'package:testdeck/modules/carparking/services/carparking_payload_factory.dart';
+import 'package:fluxlab/modules/carparking/models/carparking_models.dart';
+import 'package:fluxlab/modules/carparking/services/carparking_controller.dart';
+import 'package:fluxlab/modules/carparking/services/carparking_payload_factory.dart';
 
 Future<void> showCarParkingSignalEditor(
   BuildContext context,

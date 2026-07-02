@@ -4,6 +4,7 @@ class AppSettings {
   const AppSettings({
     required this.themeMode,
     required this.localeCode,
+    required this.terminalShellId,
     required this.terminalShellCommand,
     required this.terminalShellLaunchMode,
     required this.terminalWarningDismissed,
@@ -13,6 +14,7 @@ class AppSettings {
     return const AppSettings(
       themeMode: ThemeMode.system,
       localeCode: 'system',
+      terminalShellId: '',
       terminalShellCommand: '',
       terminalShellLaunchMode: '',
       terminalWarningDismissed: false,
@@ -23,6 +25,7 @@ class AppSettings {
     return AppSettings(
       themeMode: _themeModeFromName(json['themeMode']),
       localeCode: _localeCode(json['localeCode']),
+      terminalShellId: (json['terminalShellId'] ?? '').toString(),
       terminalShellCommand: (json['terminalShellCommand'] ?? '').toString(),
       terminalShellLaunchMode:
           (json['terminalShellLaunchMode'] ?? '').toString(),
@@ -32,6 +35,7 @@ class AppSettings {
 
   final ThemeMode themeMode;
   final String localeCode;
+  final String terminalShellId;
   final String terminalShellCommand;
   final String terminalShellLaunchMode;
   final bool terminalWarningDismissed;
@@ -48,6 +52,7 @@ class AppSettings {
     return {
       'themeMode': themeMode.name,
       'localeCode': localeCode,
+      'terminalShellId': terminalShellId,
       'terminalShellCommand': terminalShellCommand,
       'terminalShellLaunchMode': terminalShellLaunchMode,
       'terminalWarningDismissed': terminalWarningDismissed,
@@ -57,6 +62,7 @@ class AppSettings {
   AppSettings copyWith({
     ThemeMode? themeMode,
     String? localeCode,
+    String? terminalShellId,
     String? terminalShellCommand,
     String? terminalShellLaunchMode,
     bool? terminalWarningDismissed,
@@ -64,6 +70,7 @@ class AppSettings {
     return AppSettings(
       themeMode: themeMode ?? this.themeMode,
       localeCode: localeCode ?? this.localeCode,
+      terminalShellId: terminalShellId ?? this.terminalShellId,
       terminalShellCommand: terminalShellCommand ?? this.terminalShellCommand,
       terminalShellLaunchMode:
           terminalShellLaunchMode ?? this.terminalShellLaunchMode,

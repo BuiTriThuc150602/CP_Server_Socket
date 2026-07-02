@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:math';
 
-import 'package:testdeck/modules/carparking/models/carparking_models.dart';
+import 'package:fluxlab/modules/carparking/models/carparking_models.dart';
 
 enum ScenarioRunnerStatus { stopped, running, paused }
 

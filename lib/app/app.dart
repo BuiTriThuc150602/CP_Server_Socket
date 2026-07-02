@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
-import 'package:testdeck/app/app_settings_controller.dart';
-import 'package:testdeck/app/module_registry.dart';
-import 'package:testdeck/l10n/app_localizations.dart';
+import 'package:fluxlab/app/app_settings_controller.dart';
+import 'package:fluxlab/app/module_registry.dart';
+import 'package:fluxlab/l10n/app_localizations.dart';
 
-class TestDeckApp extends StatelessWidget {
-  const TestDeckApp({super.key});
+class FluxLabApp extends StatelessWidget {
+  const FluxLabApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -15,7 +15,7 @@ class TestDeckApp extends StatelessWidget {
       child: Consumer<AppSettingsController>(
         builder: (context, settings, _) {
           return MaterialApp(
-            title: 'TestDeck',
+            title: 'FluxLab',
             debugShowCheckedModeBanner: false,
             theme: _buildTheme(Brightness.light),
             darkTheme: _buildTheme(Brightness.dark),
@@ -37,20 +37,81 @@ class TestDeckApp extends StatelessWidget {
 
   ThemeData _buildTheme(Brightness brightness) {
     final scheme = ColorScheme.fromSeed(
-      seedColor: const Color(0xFF2563EB),
+      seedColor: const Color(0xFF06B6D4),
       brightness: brightness,
+    );
+    const radius = 3.0;
+    final denseShape = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(radius),
     );
     return ThemeData(
       colorScheme: scheme,
       useMaterial3: true,
       visualDensity: VisualDensity.compact,
+      scaffoldBackgroundColor:
+          brightness == Brightness.dark
+              ? const Color(0xFF0B0F14)
+              : const Color(0xFFF7F8FA),
       cardTheme: CardThemeData(
         elevation: 0,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        margin: EdgeInsets.zero,
+        shape: denseShape.copyWith(
+          side: BorderSide(color: scheme.outlineVariant),
+        ),
       ),
-      inputDecorationTheme: const InputDecorationTheme(
-        border: OutlineInputBorder(),
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          shape: denseShape,
+          visualDensity: VisualDensity.compact,
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          minimumSize: const Size(32, 32),
+        ),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          shape: denseShape,
+          visualDensity: VisualDensity.compact,
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          minimumSize: const Size(32, 32),
+        ),
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(
+          shape: denseShape,
+          visualDensity: VisualDensity.compact,
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+          minimumSize: const Size(32, 32),
+        ),
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(radius)),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(radius),
+          borderSide: BorderSide(color: scheme.outlineVariant),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(radius),
+          borderSide: BorderSide(color: scheme.primary, width: 1.2),
+        ),
         isDense: true,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 9, vertical: 8),
+      ),
+      chipTheme: ChipThemeData(
+        shape: denseShape,
+        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 0),
+        side: BorderSide(color: scheme.outlineVariant),
+      ),
+      segmentedButtonTheme: SegmentedButtonThemeData(
+        style: SegmentedButton.styleFrom(
+          shape: denseShape,
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        ),
+      ),
+      dialogTheme: DialogThemeData(shape: denseShape),
+      navigationRailTheme: NavigationRailThemeData(
+        indicatorShape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(radius),
+        ),
       ),
     );
   }
@@ -159,12 +220,17 @@ class _ModuleHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final selected = module;
-    final settings = context.watch<AppSettingsController>();
     final l10n = AppLocalizations.of(context)!;
     return Container(
-      height: 64,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      height: 52,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
       alignment: Alignment.centerLeft,
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        border: Border(
+          bottom: BorderSide(color: Theme.of(context).dividerColor),
+        ),
+      ),
       child: Row(
         children: [
           Icon(
@@ -192,49 +258,101 @@ class _ModuleHeader extends StatelessWidget {
               ],
             ),
           ),
-          SegmentedButton<ThemeMode>(
-            segments: const [
-              ButtonSegment(
-                value: ThemeMode.system,
-                icon: Icon(Icons.brightness_auto),
-                tooltip: 'System theme',
-              ),
-              ButtonSegment(
-                value: ThemeMode.light,
-                icon: Icon(Icons.light_mode),
-                tooltip: 'Light theme',
-              ),
-              ButtonSegment(
-                value: ThemeMode.dark,
-                icon: Icon(Icons.dark_mode),
-                tooltip: 'Dark theme',
-              ),
-            ],
-            selected: {settings.themeMode},
-            showSelectedIcon: false,
-            onSelectionChanged: (value) {
-              settings.setThemeMode(value.first);
-            },
-          ),
-          const SizedBox(width: 8),
-          SegmentedButton<String>(
-            segments: [
-              ButtonSegment(
-                value: 'system',
-                icon: const Icon(Icons.language),
-                label: Text(l10n.system),
-              ),
-              ButtonSegment(value: 'en', label: Text(l10n.english)),
-              ButtonSegment(value: 'vi', label: Text(l10n.vietnamese)),
-            ],
-            selected: {settings.localeCode},
-            showSelectedIcon: false,
-            onSelectionChanged: (value) {
-              settings.setLocaleCode(value.first);
-            },
-          ),
+          _AppPreferencesMenu(l10n: l10n),
         ],
       ),
+    );
+  }
+}
+
+class _AppPreferencesMenu extends StatelessWidget {
+  const _AppPreferencesMenu({required this.l10n});
+
+  final AppLocalizations l10n;
+
+  @override
+  Widget build(BuildContext context) {
+    final settings = context.watch<AppSettingsController>();
+    return PopupMenuButton<String>(
+      tooltip: 'Preferences',
+      icon: const Icon(Icons.settings_outlined, size: 20),
+      onSelected: (value) {
+        switch (value) {
+          case 'theme_system':
+            settings.setThemeMode(ThemeMode.system);
+          case 'theme_light':
+            settings.setThemeMode(ThemeMode.light);
+          case 'theme_dark':
+            settings.setThemeMode(ThemeMode.dark);
+          case 'locale_system':
+            settings.setLocaleCode('system');
+          case 'locale_en':
+            settings.setLocaleCode('en');
+          case 'locale_vi':
+            settings.setLocaleCode('vi');
+          case 'about':
+            showAboutDialog(
+              context: context,
+              applicationName: 'FluxLab',
+              applicationVersion: 'Developer Testing Workbench',
+              children: const [
+                Text(
+                  'API, socket, serial, terminal, payload, protocol bridge, and simulator workflows.',
+                ),
+              ],
+            );
+        }
+      },
+      itemBuilder:
+          (context) => [
+            PopupMenuItem(
+              enabled: false,
+              child: Text(
+                'Theme',
+                style: Theme.of(context).textTheme.labelSmall,
+              ),
+            ),
+            CheckedPopupMenuItem(
+              value: 'theme_system',
+              checked: settings.themeMode == ThemeMode.system,
+              child: Text(l10n.system),
+            ),
+            CheckedPopupMenuItem(
+              value: 'theme_light',
+              checked: settings.themeMode == ThemeMode.light,
+              child: const Text('Light'),
+            ),
+            CheckedPopupMenuItem(
+              value: 'theme_dark',
+              checked: settings.themeMode == ThemeMode.dark,
+              child: const Text('Dark'),
+            ),
+            const PopupMenuDivider(),
+            PopupMenuItem(
+              enabled: false,
+              child: Text(
+                'Language',
+                style: Theme.of(context).textTheme.labelSmall,
+              ),
+            ),
+            CheckedPopupMenuItem(
+              value: 'locale_system',
+              checked: settings.localeCode == 'system',
+              child: Text(l10n.system),
+            ),
+            CheckedPopupMenuItem(
+              value: 'locale_en',
+              checked: settings.localeCode == 'en',
+              child: Text(l10n.english),
+            ),
+            CheckedPopupMenuItem(
+              value: 'locale_vi',
+              checked: settings.localeCode == 'vi',
+              child: Text(l10n.vietnamese),
+            ),
+            const PopupMenuDivider(),
+            const PopupMenuItem(value: 'about', child: Text('About FluxLab')),
+          ],
     );
   }
 }
@@ -260,10 +378,10 @@ class _ModuleDashboard extends StatelessWidget {
         final module = modules[index];
         return Card(
           child: InkWell(
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(3),
             onTap: () => onOpen(index),
             child: Padding(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(12),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [

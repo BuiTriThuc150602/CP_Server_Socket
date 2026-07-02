@@ -1,4 +1,4 @@
-name: testdeck
+name: fluxlab
 description: "Developer testing workbench for API, socket, serial, terminal, payload, and CarParking simulation."
 
 publish_to: 'none' 
@@ -34,4 +34,4 @@ flutter:
   uses-material-design: true
   generate: true
   assets:
-    - assets/branding/testdeck_icon.png
+    - assets/branding/fluxlab_icon.png

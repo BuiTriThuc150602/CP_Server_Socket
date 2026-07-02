@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:testdeck/core/models/socket_console_entry.dart';
-import 'package:testdeck/core/ui/socket_console_panel.dart';
-import 'package:testdeck/modules/carparking/services/carparking_controller.dart';
+import 'package:fluxlab/core/models/socket_console_entry.dart';
+import 'package:fluxlab/core/ui/socket_console_panel.dart';
+import 'package:fluxlab/modules/carparking/services/carparking_controller.dart';
 
 class CarParkingConsolePanel extends StatelessWidget {
   const CarParkingConsolePanel({super.key, required this.controller});

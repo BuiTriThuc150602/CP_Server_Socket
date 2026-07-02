@@ -1,10 +1,10 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:testdeck/core/models/socket_console_entry.dart';
-import 'package:testdeck/core/ui/module_workbench.dart';
-import 'package:testdeck/core/ui/payload_composer.dart';
-import 'package:testdeck/modules/websocket_lab/services/websocket_client_engine.dart';
+import 'package:fluxlab/core/models/socket_console_entry.dart';
+import 'package:fluxlab/core/ui/module_workbench.dart';
+import 'package:fluxlab/core/ui/payload_composer.dart';
+import 'package:fluxlab/modules/websocket_lab/services/websocket_client_engine.dart';
 
 class WebSocketLabScreen extends StatefulWidget {
   const WebSocketLabScreen({super.key});

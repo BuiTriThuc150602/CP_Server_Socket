@@ -1,4 +1,4 @@
-import 'package:testdeck/core/storage/app_storage.dart';
+import 'package:fluxlab/core/storage/app_storage.dart';
 
 class ModuleConfigRepository {
   ModuleConfigRepository({AppStorage? storage})

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:testdeck/modules/carparking/models/carparking_models.dart';
-import 'package:testdeck/modules/carparking/services/carparking_controller.dart';
-import 'package:testdeck/modules/carparking/ui/widgets/carparking_device_manager_sheet.dart';
+import 'package:fluxlab/modules/carparking/models/carparking_models.dart';
+import 'package:fluxlab/modules/carparking/services/carparking_controller.dart';
+import 'package:fluxlab/modules/carparking/ui/widgets/carparking_device_manager_sheet.dart';
 
 class CarParkingDeviceSummary extends StatelessWidget {
   const CarParkingDeviceSummary({super.key, required this.controller});

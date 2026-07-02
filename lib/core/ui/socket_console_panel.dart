@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:testdeck/core/models/socket_console_entry.dart';
-import 'package:testdeck/core/terminal/interactive_terminal_panel.dart';
-import 'package:testdeck/core/utils/payload_codec.dart';
+import 'package:fluxlab/core/models/socket_console_entry.dart';
+import 'package:fluxlab/core/terminal/interactive_terminal_panel.dart';
+import 'package:fluxlab/core/utils/payload_codec.dart';
 
 enum _ToolTab { console, terminal }
 

@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_pty/flutter_pty.dart';
 import 'package:provider/provider.dart';
-import 'package:testdeck/app/app_settings_controller.dart';
+import 'package:fluxlab/app/app_settings_controller.dart';
 import 'package:xterm/xterm.dart';
 
 class InteractiveTerminalPanel extends StatefulWidget {
@@ -19,12 +19,15 @@ class InteractiveTerminalPanel extends StatefulWidget {
 
 class _InteractiveTerminalPanelState extends State<InteractiveTerminalPanel> {
   late final Terminal _terminal;
+  late final TerminalController _terminalController;
+  late final FocusNode _terminalFocusNode;
   late final List<_ShellSpec> _shells;
   late _ShellSpec _selectedShell;
   final _transcript = StringBuffer();
 
   Pty? _pty;
   StreamSubscription<Uint8List>? _outputSubscription;
+  _ShellSpec? _pendingFallback;
   bool _starting = false;
   bool _warningVisible = true;
   bool _failedDuringStartup = false;
@@ -37,7 +40,12 @@ class _InteractiveTerminalPanelState extends State<InteractiveTerminalPanel> {
   void initState() {
     super.initState();
     _shells = _detectShells();
-    _selectedShell = _shells.first;
+    _selectedShell = _shells.firstWhere(
+      (shell) => shell.isRecommended,
+      orElse: () => _shells.first,
+    );
+    _terminalController = TerminalController();
+    _terminalFocusNode = FocusNode(debugLabel: 'FluxLab terminal');
     _terminal = Terminal(
       maxLines: 3000,
       onOutput: _writeToPty,
@@ -47,7 +55,7 @@ class _InteractiveTerminalPanelState extends State<InteractiveTerminalPanel> {
         _pty?.resize(_rows, _columns);
       },
     );
-    _writeTerminal('TestDeck interactive terminal\r\n');
+    _writeTerminal('FluxLab interactive terminal\r\n');
     _writeTerminal(
       'Select a shell and press Start. Commands run on this machine.\r\n',
     );
@@ -56,24 +64,35 @@ class _InteractiveTerminalPanelState extends State<InteractiveTerminalPanel> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    final savedShellId =
+        context.read<AppSettingsController>().settings.terminalShellId;
     final savedShell =
         context.read<AppSettingsController>().settings.terminalShellCommand;
     final savedLaunchMode =
         context.read<AppSettingsController>().settings.terminalShellLaunchMode;
-    if (!_running && savedShell.isNotEmpty) {
+    if (!_running && (savedShellId.isNotEmpty || savedShell.isNotEmpty)) {
       _selectedShell = _shells.firstWhere(
         (shell) =>
-            shell.command == savedShell &&
-            (savedLaunchMode.isEmpty ||
-                shell.launchMode.name == savedLaunchMode),
+            shell.id == savedShellId ||
+            (savedShellId.isEmpty &&
+                shell.command == savedShell &&
+                (savedLaunchMode.isEmpty ||
+                    shell.launchMode.name == savedLaunchMode)),
         orElse: () => _selectedShell,
       );
     }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && !_terminalFocusNode.hasFocus) {
+        _terminalFocusNode.requestFocus();
+      }
+    });
   }
 
   @override
   void dispose() {
     unawaited(_stopShell());
+    _terminalController.dispose();
+    _terminalFocusNode.dispose();
     super.dispose();
   }
 
@@ -84,8 +103,8 @@ class _InteractiveTerminalPanelState extends State<InteractiveTerminalPanel> {
     return Column(
       children: [
         Container(
-          height: 40,
-          padding: const EdgeInsets.symmetric(horizontal: 10),
+          height: 38,
+          padding: const EdgeInsets.symmetric(horizontal: 8),
           decoration: BoxDecoration(
             color: theme.colorScheme.surfaceContainerHighest,
             border: Border(bottom: BorderSide(color: theme.dividerColor)),
@@ -125,6 +144,7 @@ class _InteractiveTerminalPanelState extends State<InteractiveTerminalPanel> {
                               setState(() => _selectedShell = shell);
                               settings.setTerminalShellCommand(
                                 shell.command,
+                                shellId: shell.id,
                                 launchMode: shell.launchMode.name,
                               );
                             },
@@ -151,9 +171,15 @@ class _InteractiveTerminalPanelState extends State<InteractiveTerminalPanel> {
               ),
               const SizedBox(width: 8),
               OutlinedButton.icon(
+                onPressed: _copyRawTerminalOutput,
+                icon: const Icon(Icons.copy, size: 16),
+                label: const Text('Raw'),
+              ),
+              const SizedBox(width: 8),
+              OutlinedButton.icon(
                 onPressed: _copyPlainTerminalOutput,
                 icon: const Icon(Icons.copy_all, size: 16),
-                label: const Text('Copy plain'),
+                label: const Text('Plain'),
               ),
               const SizedBox(width: 8),
               OutlinedButton.icon(
@@ -167,6 +193,25 @@ class _InteractiveTerminalPanelState extends State<InteractiveTerminalPanel> {
                 icon: const Icon(Icons.restart_alt, size: 16),
                 label: const Text('Restart'),
               ),
+              if (_pendingFallback != null) ...[
+                const SizedBox(width: 8),
+                FilledButton.tonalIcon(
+                  onPressed:
+                      _running || _starting
+                          ? null
+                          : () {
+                            final fallback = _pendingFallback;
+                            if (fallback == null) return;
+                            setState(() {
+                              _selectedShell = fallback;
+                              _pendingFallback = null;
+                            });
+                            _startShell(shellOverride: fallback);
+                          },
+                  icon: const Icon(Icons.subdirectory_arrow_right, size: 16),
+                  label: const Text('Start fallback'),
+                ),
+              ],
               const Spacer(),
               Text(
                 _running ? 'PTY active' : 'PTY stopped',
@@ -214,7 +259,19 @@ class _InteractiveTerminalPanelState extends State<InteractiveTerminalPanel> {
                       ? const Color(0xFF0C0C0C)
                       : const Color(0xFF111111),
             ),
-            child: TerminalView(_terminal),
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: _terminalFocusNode.requestFocus,
+              child: TerminalView(
+                _terminal,
+                controller: _terminalController,
+                focusNode: _terminalFocusNode,
+                autofocus: true,
+                alwaysShowCursor: true,
+                hardwareKeyboardOnly: Platform.isWindows,
+                onTapUp: (_, _) => _terminalFocusNode.requestFocus(),
+              ),
+            ),
           ),
         ),
       ],
@@ -230,6 +287,7 @@ class _InteractiveTerminalPanelState extends State<InteractiveTerminalPanel> {
     try {
       final shell = shellOverride ?? _selectedShell;
       _failedDuringStartup = false;
+      _pendingFallback = null;
       _writeTerminal(
         '\r\n[Starting ${shell.label}: ${shell.launchCommand} ${shell.launchArguments.join(' ')}]\r\n',
       );
@@ -282,11 +340,10 @@ class _InteractiveTerminalPanelState extends State<InteractiveTerminalPanel> {
           _starting = false;
           if (canFallback) {
             _writeTerminal(
-              '[Direct shell failed during startup. Trying ${shell.fallback!.label}.]\r\n',
+              '[Direct shell failed during startup. Use Start fallback for ${shell.fallback!.label}.]\r\n',
             );
-            unawaited(
-              _startShell(shellOverride: shell.fallback, allowFallback: false),
-            );
+            _pendingFallback = shell.fallback;
+            if (mounted) setState(() {});
             return;
           }
           if (mounted) setState(() {});
@@ -305,8 +362,11 @@ class _InteractiveTerminalPanelState extends State<InteractiveTerminalPanel> {
         _starting = false;
       }
       if (allowFallback && shell.fallback != null) {
-        _writeTerminal('[Trying ${shell.fallback!.label}.]\r\n');
-        await _startShell(shellOverride: shell.fallback, allowFallback: false);
+        _writeTerminal(
+          '[Use Start fallback for ${shell.fallback!.label}.]\r\n',
+        );
+        _pendingFallback = shell.fallback;
+        if (mounted) setState(() {});
       }
     }
   }
@@ -342,6 +402,10 @@ class _InteractiveTerminalPanelState extends State<InteractiveTerminalPanel> {
     );
   }
 
+  Future<void> _copyRawTerminalOutput() async {
+    await Clipboard.setData(ClipboardData(text: _transcript.toString()));
+  }
+
   void _writeToPty(String output) {
     final pty = _pty;
     if (pty == null) {
@@ -360,13 +424,16 @@ class _InteractiveTerminalPanelState extends State<InteractiveTerminalPanel> {
     if (Platform.isWindows) {
       final shells = <_ShellSpec>[
         const _ShellSpec(
+          id: 'win_cmd',
           label: 'Command Prompt',
           command: 'cmd.exe',
           launchMode: _ShellLaunchMode.direct,
+          isRecommended: true,
         ),
       ];
       final windowsPowerShell = _windowsPowerShellPath();
       final windowsPowerShellWrapper = _ShellSpec(
+        id: 'win_powershell_cmd_wrapper',
         label: 'Windows PowerShell via CMD wrapper',
         command: windowsPowerShell,
         arguments: const [
@@ -380,6 +447,7 @@ class _InteractiveTerminalPanelState extends State<InteractiveTerminalPanel> {
       );
       shells.add(
         _ShellSpec(
+          id: 'win_powershell_direct',
           label: 'Windows PowerShell direct',
           command: windowsPowerShell,
           arguments: const [
@@ -401,6 +469,7 @@ class _InteractiveTerminalPanelState extends State<InteractiveTerminalPanel> {
       ]);
       if (pwsh != null) {
         final pwshWrapper = _ShellSpec(
+          id: 'win_pwsh_cmd_wrapper',
           label: 'PowerShell Core via CMD wrapper',
           command: pwsh,
           arguments: const ['-NoLogo', '-NoProfile', '-NoExit'],
@@ -410,6 +479,7 @@ class _InteractiveTerminalPanelState extends State<InteractiveTerminalPanel> {
         shells
           ..add(
             _ShellSpec(
+              id: 'win_pwsh_direct',
               label: 'PowerShell Core direct',
               command: pwsh,
               arguments: const ['-NoLogo', '-NoProfile', '-NoExit'],
@@ -426,23 +496,27 @@ class _InteractiveTerminalPanelState extends State<InteractiveTerminalPanel> {
     return [
       if (shell != null && shell.trim().isNotEmpty)
         _ShellSpec(
+          id: 'posix_default',
           label: 'Default shell',
           command: shell,
           launchMode: _ShellLaunchMode.direct,
         ),
       const _ShellSpec(
+        id: 'posix_bash',
         label: 'bash',
         command: '/bin/bash',
         arguments: ['-l'],
         launchMode: _ShellLaunchMode.direct,
       ),
       const _ShellSpec(
+        id: 'posix_zsh',
         label: 'zsh',
         command: '/bin/zsh',
         arguments: ['-l'],
         launchMode: _ShellLaunchMode.direct,
       ),
       const _ShellSpec(
+        id: 'posix_sh',
         label: 'sh',
         command: '/bin/sh',
         launchMode: _ShellLaunchMode.direct,
@@ -483,19 +557,23 @@ enum _ShellLaunchMode { direct, cmdWrapper }
 
 class _ShellSpec {
   const _ShellSpec({
+    required this.id,
     required this.label,
     required this.command,
     required this.launchMode,
     this.arguments = const [],
     this.helpText = '',
+    this.isRecommended = false,
     this.fallback,
   });
 
+  final String id;
   final String label;
   final String command;
   final _ShellLaunchMode launchMode;
   final List<String> arguments;
   final String helpText;
+  final bool isRecommended;
   final _ShellSpec? fallback;
 
   String get launchCommand {
@@ -515,6 +593,7 @@ class _ShellSpec {
   @override
   bool operator ==(Object other) {
     return other is _ShellSpec &&
+        other.id == id &&
         other.label == label &&
         other.command == command &&
         other.launchMode == launchMode &&
@@ -523,7 +602,7 @@ class _ShellSpec {
 
   @override
   int get hashCode =>
-      Object.hash(label, command, launchMode, Object.hashAll(arguments));
+      Object.hash(id, label, command, launchMode, Object.hashAll(arguments));
 }
 
 bool _listEquals(List<String> a, List<String> b) {

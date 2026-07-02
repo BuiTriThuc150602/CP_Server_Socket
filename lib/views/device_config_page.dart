@@ -3,8 +3,8 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:testdeck/models/device_info.dart';
-import 'package:testdeck/models/socket_server_info.dart';
+import 'package:fluxlab/models/device_info.dart';
+import 'package:fluxlab/models/socket_server_info.dart';
 
 class DeviceConfigPage extends StatefulWidget {
   final DeviceInfo? deviceInfo;

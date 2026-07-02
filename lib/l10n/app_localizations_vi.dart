@@ -9,7 +9,7 @@ class AppLocalizationsVi extends AppLocalizations {
   AppLocalizationsVi([String locale = 'vi']) : super(locale);
 
   @override
-  String get appTitle => 'TestDeck';
+  String get appTitle => 'FluxLab';
 
   @override
   String get chooseModule =>

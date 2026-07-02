@@ -3,8 +3,8 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:testdeck/core/ui/module_workbench.dart';
-import 'package:testdeck/core/utils/payload_codec.dart';
+import 'package:fluxlab/core/ui/module_workbench.dart';
+import 'package:fluxlab/core/utils/payload_codec.dart';
 
 class PayloadStudioScreen extends StatefulWidget {
   const PayloadStudioScreen({super.key});

@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:testdeck/core/utils/payload_codec.dart';
+import 'package:fluxlab/core/utils/payload_codec.dart';
 
 enum TcpClientConnectionState { disconnected, connecting, connected, error }
 

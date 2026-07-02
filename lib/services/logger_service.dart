@@ -1,1 +1,1 @@
-export 'package:testdeck/core/logging/logger_service.dart';
+export 'package:fluxlab/core/logging/logger_service.dart';

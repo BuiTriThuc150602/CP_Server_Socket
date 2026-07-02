@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:testdeck/modules/carparking/models/carparking_models.dart';
-import 'package:testdeck/modules/carparking/services/carparking_controller.dart';
+import 'package:fluxlab/modules/carparking/models/carparking_models.dart';
+import 'package:fluxlab/modules/carparking/services/carparking_controller.dart';
 
 Future<void> showCarParkingDeviceManager(
   BuildContext context,

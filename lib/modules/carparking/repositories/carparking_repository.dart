@@ -1,6 +1,6 @@
-import 'package:testdeck/core/storage/json_storage_repository.dart';
-import 'package:testdeck/modules/carparking/models/carparking_models.dart';
-import 'package:testdeck/modules/carparking/services/carparking_payload_factory.dart';
+import 'package:fluxlab/core/storage/json_storage_repository.dart';
+import 'package:fluxlab/modules/carparking/models/carparking_models.dart';
+import 'package:fluxlab/modules/carparking/services/carparking_payload_factory.dart';
 
 class CarParkingRepository {
   CarParkingRepository({JsonStorageRepository? storage})

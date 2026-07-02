@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:testdeck/modules/carparking/models/carparking_models.dart';
-import 'package:testdeck/modules/carparking/services/carparking_controller.dart';
-import 'package:testdeck/modules/carparking/ui/widgets/carparking_signal_editor_dialog.dart';
-import 'package:testdeck/modules/carparking/ui/widgets/carparking_signal_list.dart';
+import 'package:fluxlab/modules/carparking/models/carparking_models.dart';
+import 'package:fluxlab/modules/carparking/services/carparking_controller.dart';
+import 'package:fluxlab/modules/carparking/ui/widgets/carparking_signal_editor_dialog.dart';
+import 'package:fluxlab/modules/carparking/ui/widgets/carparking_signal_list.dart';
 
 class CarParkingSignalCard extends StatelessWidget {
   const CarParkingSignalCard({
@@ -45,14 +45,31 @@ class CarParkingSignalCard extends StatelessWidget {
     return Card(
       clipBehavior: Clip.antiAlias,
       color: surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(3),
+        side: BorderSide(
+          color: selected ? scheme.primary : scheme.outlineVariant,
+          width: selected ? 1.8 : 1,
+        ),
+      ),
       child: Row(
         children: [
-          Container(width: 5, color: current ? scheme.primary : accent),
+          Container(
+            width: selected ? 8 : 5,
+            color:
+                selected ? scheme.primary : (current ? scheme.primary : accent),
+          ),
           SizedBox(
-            width: 42,
-            child: Checkbox(
-              value: selected,
-              onChanged: (value) => onSelected(value ?? false),
+            width: 46,
+            child: ColoredBox(
+              color:
+                  selected
+                      ? scheme.primary.withValues(alpha: 0.08)
+                      : Colors.transparent,
+              child: Checkbox(
+                value: selected,
+                onChanged: (value) => onSelected(value ?? false),
+              ),
             ),
           ),
           Expanded(
