@@ -5,7 +5,7 @@ import 'dart:math';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:socket_server/core/storage/module_config_repository.dart';
+import 'package:testdeck/core/storage/module_config_repository.dart';
 
 enum ApiBodyType { none, raw, json, formUrlEncoded }
 
@@ -15,6 +15,7 @@ class ApiKeyValue {
     required this.value,
     this.enabled = true,
     this.secret = false,
+    this.description = '',
   });
 
   factory ApiKeyValue.fromJson(Map<String, dynamic> json) {
@@ -23,6 +24,7 @@ class ApiKeyValue {
       value: (json['value'] ?? '').toString(),
       enabled: json['enabled'] != false,
       secret: json['secret'] == true,
+      description: (json['description'] ?? '').toString(),
     );
   }
 
@@ -30,9 +32,16 @@ class ApiKeyValue {
   final String value;
   final bool enabled;
   final bool secret;
+  final String description;
 
   Map<String, dynamic> toJson() {
-    return {'key': key, 'value': value, 'enabled': enabled, 'secret': secret};
+    return {
+      'key': key,
+      'value': value,
+      'enabled': enabled,
+      'secret': secret,
+      'description': description,
+    };
   }
 
   ApiKeyValue copyWith({
@@ -40,12 +49,14 @@ class ApiKeyValue {
     String? value,
     bool? enabled,
     bool? secret,
+    String? description,
   }) {
     return ApiKeyValue(
       key: key ?? this.key,
       value: value ?? this.value,
       enabled: enabled ?? this.enabled,
       secret: secret ?? this.secret,
+      description: description ?? this.description,
     );
   }
 }
@@ -84,6 +95,23 @@ class ApiFolder {
       'sortOrder': sortOrder,
     };
   }
+
+  ApiFolder copyWith({
+    String? id,
+    String? collectionId,
+    Object? parentId = _notSet,
+    String? name,
+    int? sortOrder,
+  }) {
+    return ApiFolder(
+      id: id ?? this.id,
+      collectionId: collectionId ?? this.collectionId,
+      parentId:
+          identical(parentId, _notSet) ? this.parentId : parentId as String?,
+      name: name ?? this.name,
+      sortOrder: sortOrder ?? this.sortOrder,
+    );
+  }
 }
 
 class ApiRequest {
@@ -114,7 +142,7 @@ class ApiRequest {
       name: 'New request',
       method: 'GET',
       url: 'https://httpbin.org/get',
-      headers: const [],
+      headers: _defaultRequestHeaders(),
       queryParams: const [],
       bodyType: ApiBodyType.none,
       body: '',
@@ -186,7 +214,7 @@ class ApiRequest {
   ApiRequest copyWith({
     String? id,
     String? collectionId,
-    String? folderId,
+    Object? folderId = _notSet,
     String? name,
     String? method,
     String? url,
@@ -204,7 +232,8 @@ class ApiRequest {
     return ApiRequest(
       id: id ?? this.id,
       collectionId: collectionId ?? this.collectionId,
-      folderId: folderId ?? this.folderId,
+      folderId:
+          identical(folderId, _notSet) ? this.folderId : folderId as String?,
       name: name ?? this.name,
       method: method ?? this.method,
       url: url ?? this.url,
@@ -431,19 +460,21 @@ class _ApiLabScreenState extends State<ApiLabScreen> {
   List<ApiCollection> _collections = [];
   List<ApiEnvironment> _environments = [];
   List<ApiHistoryEntry> _history = [];
+  List<String> _openRequestIds = [];
   final _globalVariables = <ApiKeyValue>[
     const ApiKeyValue(key: 'baseUrl', value: 'https://httpbin.org'),
   ];
 
   String? _selectedCollectionId;
   String? _selectedRequestId;
+  String? _selectedFolderId;
   String? _selectedEnvironmentId;
   String _method = 'GET';
   ApiBodyType _bodyType = ApiBodyType.none;
   String _authType = 'none';
   int _requestTab = 0;
   int _responseTab = 0;
-  bool _prettyResponse = true;
+  String _responseBodyMode = 'pretty';
   bool _loading = true;
   bool _sending = false;
   bool _runnerActive = false;
@@ -497,9 +528,9 @@ class _ApiLabScreenState extends State<ApiLabScreen> {
               if (constraints.maxWidth < 1050) {
                 return ListView(
                   children: [
-                    SizedBox(height: 360, child: _collectionPanel()),
+                    SizedBox(height: 420, child: _collectionPanel()),
                     const Divider(height: 1),
-                    SizedBox(height: 520, child: _requestBuilder()),
+                    SizedBox(height: 620, child: _requestBuilder()),
                     const Divider(height: 1),
                     SizedBox(height: 420, child: _responsePanel()),
                   ],
@@ -507,7 +538,7 @@ class _ApiLabScreenState extends State<ApiLabScreen> {
               }
               return Row(
                 children: [
-                  SizedBox(width: 300, child: _collectionPanel()),
+                  SizedBox(width: 320, child: _collectionPanel()),
                   const VerticalDivider(width: 1),
                   Expanded(flex: 5, child: _requestBuilder()),
                   const VerticalDivider(width: 1),
@@ -541,8 +572,10 @@ class _ApiLabScreenState extends State<ApiLabScreen> {
                 for (final env in _environments)
                   DropdownMenuItem(value: env.id, child: Text(env.name)),
               ],
-              onChanged:
-                  (value) => setState(() => _selectedEnvironmentId = value),
+              onChanged: (value) {
+                setState(() => _selectedEnvironmentId = value);
+                unawaited(_saveWorkspace());
+              },
             ),
           ),
           const SizedBox(width: 8),
@@ -574,8 +607,9 @@ class _ApiLabScreenState extends State<ApiLabScreen> {
   Widget _collectionPanel() {
     final query = _search.text.trim().toLowerCase();
     final collection = _selectedCollection;
-    final requests =
-        (collection?.requests ?? const <ApiRequest>[])
+    final requests = collection?.requests ?? const <ApiRequest>[];
+    final filteredRequests =
+        requests
             .where(
               (request) =>
                   query.isEmpty ||
@@ -628,10 +662,16 @@ class _ApiLabScreenState extends State<ApiLabScreen> {
             children: [
               Expanded(
                 child: FilledButton.icon(
-                  onPressed: _createRequest,
+                  onPressed: () => _createRequest(folderId: _selectedFolderId),
                   icon: const Icon(Icons.add, size: 18),
                   label: const Text('Request'),
                 ),
+              ),
+              const SizedBox(width: 8),
+              OutlinedButton.icon(
+                onPressed: _createFolder,
+                icon: const Icon(Icons.folder_open, size: 18),
+                label: const Text('Folder'),
               ),
               const SizedBox(width: 8),
               OutlinedButton.icon(
@@ -644,29 +684,112 @@ class _ApiLabScreenState extends State<ApiLabScreen> {
         ),
         const Divider(height: 1),
         Expanded(
-          child: ListView.builder(
-            itemCount: requests.length,
-            itemBuilder: (context, index) {
-              final request = requests[index];
-              return ListTile(
-                selected: request.id == _selectedRequestId,
-                dense: true,
-                leading: Text(
-                  request.method,
-                  style: const TextStyle(
-                    fontFamily: 'monospace',
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                title: Text(request.name, overflow: TextOverflow.ellipsis),
-                subtitle: Text(request.url, overflow: TextOverflow.ellipsis),
-                onTap: () => _selectRequest(request.id),
-              );
-            },
+          child: ListView(
+            children: [
+              if (query.isNotEmpty)
+                for (final request in filteredRequests) _requestTile(request)
+              else if (collection != null) ...[
+                _rootSection(collection),
+                for (final folder in _childFolders(collection, null))
+                  _folderTile(collection, folder, depth: 0),
+              ],
+            ],
           ),
         ),
       ],
     );
+  }
+
+  Widget _rootSection(ApiCollection collection) {
+    final rootRequests =
+        collection.requests
+            .where((request) => request.folderId == null)
+            .toList();
+    return ExpansionTile(
+      initiallyExpanded: true,
+      tilePadding: const EdgeInsets.only(left: 12, right: 4),
+      leading: const Icon(Icons.source_outlined, size: 18),
+      title: const Text('Collection root'),
+      trailing: IconButton(
+        tooltip: 'Add request at root',
+        icon: const Icon(Icons.add, size: 18),
+        onPressed: () => _createRequest(folderId: null),
+      ),
+      onExpansionChanged: (_) => _selectedFolderId = null,
+      children: [for (final request in rootRequests) _requestTile(request)],
+    );
+  }
+
+  Widget _folderTile(
+    ApiCollection collection,
+    ApiFolder folder, {
+    required int depth,
+  }) {
+    final childFolders = _childFolders(collection, folder.id);
+    final childRequests =
+        collection.requests
+            .where((request) => request.folderId == folder.id)
+            .toList();
+    return ExpansionTile(
+      initiallyExpanded: true,
+      tilePadding: EdgeInsets.only(left: 12.0 + depth * 14, right: 4),
+      leading: const Icon(Icons.folder_outlined, size: 18),
+      title: Text(folder.name, overflow: TextOverflow.ellipsis),
+      trailing: Wrap(
+        spacing: 2,
+        children: [
+          IconButton(
+            tooltip: 'Rename folder',
+            icon: const Icon(Icons.edit_outlined, size: 18),
+            onPressed: () => _renameFolder(folder),
+          ),
+          IconButton(
+            tooltip: 'Add request',
+            icon: const Icon(Icons.add, size: 18),
+            onPressed: () => _createRequest(folderId: folder.id),
+          ),
+        ],
+      ),
+      onExpansionChanged: (_) => _selectedFolderId = folder.id,
+      children: [
+        for (final child in childFolders)
+          _folderTile(collection, child, depth: depth + 1),
+        for (final request in childRequests) _requestTile(request),
+      ],
+    );
+  }
+
+  Widget _requestTile(ApiRequest request) {
+    return ListTile(
+      selected: request.id == _selectedRequestId,
+      dense: true,
+      leading: _methodLabel(request.method),
+      title: Text(request.name, overflow: TextOverflow.ellipsis),
+      subtitle: Text(request.url, overflow: TextOverflow.ellipsis),
+      onTap: () => _selectRequest(request.id),
+    );
+  }
+
+  Widget _methodLabel(String method) {
+    final color = _methodColor(method);
+    return SizedBox(
+      width: 54,
+      child: Text(
+        method,
+        style: TextStyle(
+          color: color,
+          fontFamily: 'monospace',
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+    );
+  }
+
+  List<ApiFolder> _childFolders(ApiCollection collection, String? parentId) {
+    return collection.folders
+        .where((folder) => folder.parentId == parentId)
+        .toList()
+      ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
   }
 
   Widget _requestBuilder() {
@@ -679,6 +802,8 @@ class _ApiLabScreenState extends State<ApiLabScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          _openTabs(),
+          const SizedBox(height: 8),
           Row(
             children: [
               SizedBox(
@@ -690,7 +815,10 @@ class _ApiLabScreenState extends State<ApiLabScreen> {
                           .map(
                             (method) => DropdownMenuItem(
                               value: method,
-                              child: Text(method),
+                              child: Text(
+                                method,
+                                style: TextStyle(color: _methodColor(method)),
+                              ),
                             ),
                           )
                           .toList(),
@@ -745,9 +873,12 @@ class _ApiLabScreenState extends State<ApiLabScreen> {
           SegmentedButton<int>(
             segments: const [
               ButtonSegment(value: 0, label: Text('Params')),
-              ButtonSegment(value: 1, label: Text('Headers')),
-              ButtonSegment(value: 2, label: Text('Body')),
-              ButtonSegment(value: 3, label: Text('Auth')),
+              ButtonSegment(value: 1, label: Text('Authorization')),
+              ButtonSegment(value: 2, label: Text('Headers')),
+              ButtonSegment(value: 3, label: Text('Body')),
+              ButtonSegment(value: 4, label: Text('Pre-request')),
+              ButtonSegment(value: 5, label: Text('Tests')),
+              ButtonSegment(value: 6, label: Text('Settings')),
             ],
             selected: {_requestTab},
             onSelectionChanged:
@@ -763,18 +894,95 @@ class _ApiLabScreenState extends State<ApiLabScreen> {
                   request.copyWith(queryParams: values),
                 ),
               ),
-              1 => _keyValueEditor(
-                'Headers',
-                request.headers,
-                (values) =>
-                    _updateSelectedRequest(request.copyWith(headers: values)),
+              1 => _authEditor(),
+              2 => _headersEditor(request),
+              3 => _bodyEditor(),
+              4 => _placeholderPanel(
+                'Pre-request scripts',
+                'Pre-request scripting is planned. Variables and built-ins already work in URL, headers, params, and body.',
               ),
-              2 => _bodyEditor(),
-              _ => _authEditor(),
+              5 => _placeholderPanel(
+                'Tests',
+                'Response assertions and report export are planned for the runner.',
+              ),
+              _ => _settingsPanel(),
             },
           ),
         ],
       ),
+    );
+  }
+
+  Widget _openTabs() {
+    final collection = _selectedCollection;
+    if (collection == null || _openRequestIds.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    final openRequests = [
+      for (final id in _openRequestIds)
+        if (collection.requests.where((request) => request.id == id).firstOrNull
+            case final request?)
+          request,
+    ];
+    return SizedBox(
+      height: 38,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: openRequests.length,
+        separatorBuilder: (_, _) => const SizedBox(width: 6),
+        itemBuilder: (context, index) {
+          final request = openRequests[index];
+          final active = request.id == _selectedRequestId;
+          return InputChip(
+            selected: active,
+            avatar: _methodLabel(request.method),
+            label: Text(request.name, overflow: TextOverflow.ellipsis),
+            onPressed: () => _selectRequest(request.id),
+            onDeleted:
+                openRequests.length == 1
+                    ? null
+                    : () => _closeRequestTab(request.id),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _headersEditor(ApiRequest request) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            OutlinedButton.icon(
+              onPressed: () => _showHeaderTemplateMenu(request),
+              icon: const Icon(Icons.article_outlined, size: 16),
+              label: const Text('Templates'),
+            ),
+            OutlinedButton.icon(
+              onPressed: () => _bulkEditHeaders(request),
+              icon: const Icon(Icons.view_headline, size: 16),
+              label: const Text('Bulk edit'),
+            ),
+            OutlinedButton.icon(
+              onPressed: () => _copyRequestCurl(request),
+              icon: const Icon(Icons.terminal, size: 16),
+              label: const Text('Copy cURL'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Expanded(
+          child: _keyValueEditor(
+            'Headers',
+            request.headers,
+            (values) =>
+                _updateSelectedRequest(request.copyWith(headers: values)),
+          ),
+        ),
+      ],
     );
   }
 
@@ -804,9 +1012,13 @@ class _ApiLabScreenState extends State<ApiLabScreen> {
         const SizedBox(height: 8),
         Expanded(
           child: ListView.builder(
-            itemCount: values.length,
+            itemCount: values.length + 1,
             itemBuilder: (context, index) {
-              final item = values[index];
+              final isNewRow = index == values.length;
+              final item =
+                  isNewRow
+                      ? const ApiKeyValue(key: '', value: '', enabled: true)
+                      : values[index];
               return Padding(
                 padding: const EdgeInsets.only(bottom: 6),
                 child: Row(
@@ -814,26 +1026,31 @@ class _ApiLabScreenState extends State<ApiLabScreen> {
                     Checkbox(
                       value: item.enabled,
                       onChanged:
-                          (value) => onChanged(
-                            _replace(
-                              values,
-                              index,
-                              item.copyWith(enabled: value ?? true),
-                            ),
-                          ),
+                          isNewRow
+                              ? null
+                              : (value) => onChanged(
+                                _replace(
+                                  values,
+                                  index,
+                                  item.copyWith(enabled: value ?? true),
+                                ),
+                              ),
                     ),
                     Expanded(
                       child: TextFormField(
                         initialValue: item.key,
                         decoration: const InputDecoration(labelText: 'Key'),
-                        onChanged:
-                            (value) => onChanged(
-                              _replace(
-                                values,
-                                index,
-                                item.copyWith(key: value),
-                              ),
-                            ),
+                        onChanged: (value) {
+                          if (isNewRow) {
+                            if (value.trim().isNotEmpty) {
+                              onChanged([...values, item.copyWith(key: value)]);
+                            }
+                            return;
+                          }
+                          onChanged(
+                            _replace(values, index, item.copyWith(key: value)),
+                          );
+                        },
                       ),
                     ),
                     const SizedBox(width: 6),
@@ -841,18 +1058,63 @@ class _ApiLabScreenState extends State<ApiLabScreen> {
                       child: TextFormField(
                         initialValue: item.value,
                         decoration: const InputDecoration(labelText: 'Value'),
-                        onChanged:
-                            (value) => onChanged(
-                              _replace(
-                                values,
-                                index,
+                        onChanged: (value) {
+                          if (isNewRow) {
+                            if (value.trim().isNotEmpty) {
+                              onChanged([
+                                ...values,
                                 item.copyWith(value: value),
-                              ),
+                              ]);
+                            }
+                            return;
+                          }
+                          onChanged(
+                            _replace(
+                              values,
+                              index,
+                              item.copyWith(value: value),
                             ),
+                          );
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: TextFormField(
+                        initialValue: item.description,
+                        decoration: const InputDecoration(
+                          labelText: 'Description',
+                        ),
+                        onChanged:
+                            isNewRow
+                                ? null
+                                : (value) => onChanged(
+                                  _replace(
+                                    values,
+                                    index,
+                                    item.copyWith(description: value),
+                                  ),
+                                ),
                       ),
                     ),
                     IconButton(
-                      onPressed: () => onChanged(_removeAt(values, index)),
+                      tooltip: 'Duplicate row',
+                      onPressed:
+                          isNewRow
+                              ? null
+                              : () => onChanged([
+                                ...values.take(index + 1),
+                                item.copyWith(),
+                                ...values.skip(index + 1),
+                              ]),
+                      icon: const Icon(Icons.copy, size: 18),
+                    ),
+                    IconButton(
+                      tooltip: 'Delete row',
+                      onPressed:
+                          isNewRow
+                              ? null
+                              : () => onChanged(_removeAt(values, index)),
                       icon: const Icon(Icons.close),
                     ),
                   ],
@@ -950,6 +1212,7 @@ class _ApiLabScreenState extends State<ApiLabScreen> {
 
   Widget _responsePanel() {
     final response = _response;
+    final statusColor = _statusColor(response?.statusCode);
     return Padding(
       padding: const EdgeInsets.all(12),
       child: Column(
@@ -961,8 +1224,13 @@ class _ApiLabScreenState extends State<ApiLabScreen> {
               const Spacer(),
               if (response != null) ...[
                 Chip(
+                  backgroundColor: statusColor.withValues(alpha: 0.16),
                   label: Text(
                     '${response.statusCode ?? '-'} ${response.reasonPhrase}',
+                    style: TextStyle(
+                      color: statusColor,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 6),
@@ -970,11 +1238,22 @@ class _ApiLabScreenState extends State<ApiLabScreen> {
                 const SizedBox(width: 6),
                 Chip(label: Text('${response.sizeBytes} bytes')),
                 IconButton(
+                  tooltip: 'Copy body',
                   onPressed:
                       () => Clipboard.setData(
                         ClipboardData(text: response.bodyText),
                       ),
                   icon: const Icon(Icons.copy),
+                ),
+                IconButton(
+                  tooltip: 'Copy request as cURL',
+                  onPressed:
+                      _selectedRequest == null
+                          ? null
+                          : () => _copyRequestCurl(
+                            _draftRequest(_selectedRequest!),
+                          ),
+                  icon: const Icon(Icons.terminal),
                 ),
               ],
             ],
@@ -994,10 +1273,18 @@ class _ApiLabScreenState extends State<ApiLabScreen> {
           if (_responseTab == 0)
             Align(
               alignment: Alignment.centerLeft,
-              child: FilterChip(
-                label: const Text('Pretty JSON'),
-                selected: _prettyResponse,
-                onSelected: (value) => setState(() => _prettyResponse = value),
+              child: SegmentedButton<String>(
+                segments: const [
+                  ButtonSegment(value: 'pretty', label: Text('Pretty JSON')),
+                  ButtonSegment(value: 'raw', label: Text('Raw')),
+                  ButtonSegment(value: 'preview', label: Text('Preview')),
+                ],
+                selected: {_responseBodyMode},
+                showSelectedIcon: false,
+                onSelectionChanged:
+                    (value) => setState(() {
+                      _responseBodyMode = value.first;
+                    }),
               ),
             ),
           const SizedBox(height: 8),
@@ -1017,9 +1304,11 @@ class _ApiLabScreenState extends State<ApiLabScreen> {
     final text =
         response == null
             ? 'No response yet.'
-            : (_prettyResponse
-                ? _prettyJson(response.bodyText)
-                : response.bodyText);
+            : switch (_responseBodyMode) {
+              'pretty' => _prettyJson(response.bodyText),
+              'preview' => _previewText(response.bodyText),
+              _ => response.bodyText,
+            };
     return SingleChildScrollView(
       child: SelectableText(
         text,
@@ -1043,22 +1332,217 @@ class _ApiLabScreenState extends State<ApiLabScreen> {
   }
 
   Widget _historyList() {
-    return ListView.builder(
-      itemCount: _history.length,
-      itemBuilder: (context, index) {
-        final item = _history[index];
-        return ListTile(
-          dense: true,
-          title: Text(
-            '${item.requestSnapshot.method} ${item.requestSnapshot.name}',
+    return Column(
+      children: [
+        Align(
+          alignment: Alignment.centerRight,
+          child: TextButton.icon(
+            onPressed:
+                _history.isEmpty
+                    ? null
+                    : () {
+                      setState(() => _history = []);
+                      unawaited(_saveWorkspace());
+                    },
+            icon: const Icon(Icons.delete_sweep, size: 16),
+            label: const Text('Clear history'),
           ),
-          subtitle: Text(
-            '${item.responseSnapshot.statusCode ?? '-'} • ${item.responseSnapshot.durationMs} ms • ${item.responseSnapshot.receivedAt.toLocal()}',
+        ),
+        Expanded(
+          child: ListView.builder(
+            itemCount: _history.length,
+            itemBuilder: (context, index) {
+              final item = _history[index];
+              final color = _statusColor(item.responseSnapshot.statusCode);
+              return ListTile(
+                dense: true,
+                leading: _methodLabel(item.requestSnapshot.method),
+                title: Text(
+                  item.requestSnapshot.url,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                subtitle: Text(
+                  '${item.responseSnapshot.statusCode ?? '-'} • ${item.responseSnapshot.durationMs} ms • ${item.responseSnapshot.receivedAt.toLocal()}',
+                ),
+                trailing: Icon(Icons.circle, color: color, size: 10),
+                onTap:
+                    () => setState(() {
+                      _response = item.responseSnapshot;
+                      _responseTab = 0;
+                    }),
+              );
+            },
           ),
-          onTap: () => setState(() => _response = item.responseSnapshot),
-        );
-      },
+        ),
+      ],
     );
+  }
+
+  Widget _placeholderPanel(String title, String message) {
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 520),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.construction_outlined,
+              color: Theme.of(context).colorScheme.primary,
+            ),
+            const SizedBox(height: 8),
+            Text(title, style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 6),
+            Text(message, textAlign: TextAlign.center),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _settingsPanel() {
+    return ListView(
+      children: const [
+        ListTile(
+          leading: Icon(Icons.timer_outlined),
+          title: Text('Timeout'),
+          subtitle: Text('Requests use a 30 second timeout for this phase.'),
+        ),
+        ListTile(
+          leading: Icon(Icons.alt_route),
+          title: Text('Redirects'),
+          subtitle: Text(
+            'Dio follows redirects by default. Per-request controls are planned.',
+          ),
+        ),
+        ListTile(
+          leading: Icon(Icons.security_outlined),
+          title: Text('SSL verification'),
+          subtitle: Text(
+            'Custom SSL verification controls are planned for desktop builds.',
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _showHeaderTemplateMenu(ApiRequest request) async {
+    final selected = await showMenu<ApiKeyValue>(
+      context: context,
+      position: const RelativeRect.fromLTRB(360, 180, 24, 24),
+      items: [
+        for (final template in _headerTemplates())
+          PopupMenuItem(
+            value: template,
+            child: Text('${template.key}: ${template.value}'),
+          ),
+      ],
+    );
+    if (selected == null) return;
+    _insertHeaderTemplate(request, selected);
+  }
+
+  void _insertHeaderTemplate(ApiRequest request, ApiKeyValue template) {
+    final existingIndex = request.headers.indexWhere(
+      (header) => header.key.toLowerCase() == template.key.toLowerCase(),
+    );
+    final nextHeaders = [...request.headers];
+    if (existingIndex >= 0) {
+      nextHeaders[existingIndex] = template;
+      _status = 'Header template replaced existing ${template.key}.';
+    } else {
+      nextHeaders.add(template);
+      _status = 'Header template added: ${template.key}.';
+    }
+    _updateSelectedRequest(request.copyWith(headers: nextHeaders));
+  }
+
+  Future<void> _bulkEditHeaders(ApiRequest request) async {
+    final controller = TextEditingController(
+      text: request.headers
+          .where((header) => header.key.trim().isNotEmpty)
+          .map((header) => '${header.key}: ${header.value}')
+          .join('\n'),
+    );
+    await showDialog<void>(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Bulk edit headers'),
+            content: SizedBox(
+              width: 640,
+              child: TextField(
+                controller: controller,
+                minLines: 10,
+                maxLines: 18,
+                decoration: const InputDecoration(
+                  hintText:
+                      r'Accept: application/json'
+                      '\n'
+                      r'X-Request-Id={{$uuid}}',
+                  alignLabelWithHint: true,
+                ),
+                style: const TextStyle(fontFamily: 'monospace'),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () {
+                  _updateSelectedRequest(
+                    request.copyWith(
+                      headers: _parseBulkKeyValues(controller.text),
+                    ),
+                  );
+                  Navigator.pop(context);
+                },
+                child: const Text('Apply'),
+              ),
+            ],
+          ),
+    );
+    controller.dispose();
+  }
+
+  Future<void> _copyRequestCurl(ApiRequest request) async {
+    final curl = _requestToCurl(_draftRequest(request));
+    await Clipboard.setData(ClipboardData(text: curl));
+    if (mounted) setState(() => _status = 'Copied request as cURL.');
+  }
+
+  Future<String?> _promptText(
+    String title,
+    String label, {
+    String initial = '',
+  }) async {
+    final controller = TextEditingController(text: initial);
+    final value = await showDialog<String>(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: Text(title),
+            content: TextField(
+              controller: controller,
+              autofocus: true,
+              decoration: InputDecoration(labelText: label),
+              onSubmitted: (value) => Navigator.pop(context, value),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(context, controller.text),
+                child: const Text('Save'),
+              ),
+            ],
+          ),
+    );
+    controller.dispose();
+    return value?.trim();
   }
 
   Future<void> _load() async {
@@ -1075,6 +1559,7 @@ class _ApiLabScreenState extends State<ApiLabScreen> {
       ];
       _selectedCollectionId = collection.id;
       _selectedRequestId = collection.requests.first.id;
+      _openRequestIds = [collection.requests.first.id];
     } else {
       _collections =
           _maps(json['collections']).map(ApiCollection.fromJson).toList();
@@ -1089,7 +1574,23 @@ class _ApiLabScreenState extends State<ApiLabScreen> {
                   _collections.first.requests.firstOrNull?.id ??
                   '')
               .toString();
+      _openRequestIds =
+          (json['openRequestIds'] as List?)
+              ?.map((item) => item.toString())
+              .where((id) => id.isNotEmpty)
+              .toList() ??
+          [
+            if (_selectedRequestId != null && _selectedRequestId!.isNotEmpty)
+              _selectedRequestId!,
+          ];
       _selectedEnvironmentId = json['selectedEnvironmentId']?.toString();
+    }
+    if (_selectedRequest == null) {
+      _selectedRequestId = _collections.first.requests.firstOrNull?.id;
+    }
+    if (_selectedRequestId != null &&
+        !_openRequestIds.contains(_selectedRequestId)) {
+      _openRequestIds = [..._openRequestIds, _selectedRequestId!];
     }
     _syncEditors();
     setState(() => _loading = false);
@@ -1102,6 +1603,7 @@ class _ApiLabScreenState extends State<ApiLabScreen> {
       'history': _history.take(200).map((item) => item.toJson()).toList(),
       'selectedCollectionId': _selectedCollectionId,
       'selectedRequestId': _selectedRequestId,
+      'openRequestIds': _openRequestIds,
       'selectedEnvironmentId': _selectedEnvironmentId,
     });
   }
@@ -1176,6 +1678,10 @@ class _ApiLabScreenState extends State<ApiLabScreen> {
     final started = DateTime.now();
     try {
       final resolved = _resolveRequest(request);
+      final uri = Uri.tryParse(resolved.url);
+      if (uri == null || !uri.hasScheme || uri.host.isEmpty) {
+        throw const FormatException('Enter a valid http:// or https:// URL.');
+      }
       final response = await _dio.request<dynamic>(
         resolved.url,
         data: resolved.data,
@@ -1183,6 +1689,9 @@ class _ApiLabScreenState extends State<ApiLabScreen> {
         options: Options(
           method: request.method,
           headers: resolved.headers,
+          sendTimeout: const Duration(seconds: 30),
+          receiveTimeout: const Duration(seconds: 30),
+          followRedirects: true,
           validateStatus: (_) => true,
         ),
       );
@@ -1265,7 +1774,14 @@ class _ApiLabScreenState extends State<ApiLabScreen> {
       data = _substitute(request.body, variables);
     } else if (request.bodyType == ApiBodyType.json) {
       headers.putIfAbsent('Content-Type', () => 'application/json');
-      data = _substitute(request.body, variables);
+      final body = _substitute(request.body, variables);
+      if (body.trim().isNotEmpty) {
+        try {
+          data = jsonDecode(body);
+        } on FormatException {
+          throw const FormatException('JSON body is not valid.');
+        }
+      }
     } else if (request.bodyType == ApiBodyType.formUrlEncoded) {
       headers.putIfAbsent(
         'Content-Type',
@@ -1306,6 +1822,10 @@ class _ApiLabScreenState extends State<ApiLabScreen> {
       if (selectedEnv != null)
         for (final item in selectedEnv.variables.where((item) => item.enabled))
           item.key: item.value,
+      'timestamp': '${now.millisecondsSinceEpoch ~/ 1000}',
+      'timestampMs': '${now.millisecondsSinceEpoch}',
+      'isoTime': now.toIso8601String(),
+      'uuid': _uuidLike(),
       r'$timestamp': '${now.millisecondsSinceEpoch ~/ 1000}',
       r'$timestampMs': '${now.millisecondsSinceEpoch}',
       r'$isoTime': now.toIso8601String(),
@@ -1326,6 +1846,8 @@ class _ApiLabScreenState extends State<ApiLabScreen> {
       _collections = [..._collections, collection];
       _selectedCollectionId = collection.id;
       _selectedRequestId = collection.requests.first.id;
+      _selectedFolderId = null;
+      _openRequestIds = [collection.requests.first.id];
       _syncEditors();
     });
     unawaited(_saveWorkspace());
@@ -1337,14 +1859,20 @@ class _ApiLabScreenState extends State<ApiLabScreen> {
     setState(() {
       _selectedCollectionId = collection.id;
       _selectedRequestId = collection.requests.firstOrNull?.id;
+      _selectedFolderId = null;
+      _openRequestIds = [
+        if (collection.requests.firstOrNull case final request?) request.id,
+      ];
       _syncEditors();
     });
   }
 
-  void _createRequest() {
+  void _createRequest({String? folderId}) {
     final collection = _selectedCollection;
     if (collection == null) return;
-    final request = ApiRequest.defaults(collection.id);
+    final request = ApiRequest.defaults(
+      collection.id,
+    ).copyWith(folderId: folderId);
     _collections = [
       for (final item in _collections)
         if (item.id == collection.id)
@@ -1357,6 +1885,8 @@ class _ApiLabScreenState extends State<ApiLabScreen> {
     ];
     setState(() {
       _selectedRequestId = request.id;
+      _selectedFolderId = folderId;
+      _openRequestIds = [..._openRequestIds, request.id];
       _syncEditors();
     });
     unawaited(_saveWorkspace());
@@ -1365,8 +1895,80 @@ class _ApiLabScreenState extends State<ApiLabScreen> {
   void _selectRequest(String id) {
     setState(() {
       _selectedRequestId = id;
+      if (!_openRequestIds.contains(id)) {
+        _openRequestIds = [..._openRequestIds, id];
+      }
       _syncEditors();
     });
+    unawaited(_saveWorkspace());
+  }
+
+  void _closeRequestTab(String id) {
+    final next = _openRequestIds.where((item) => item != id).toList();
+    setState(() {
+      _openRequestIds = next;
+      if (_selectedRequestId == id) {
+        _selectedRequestId =
+            next.firstOrNull ?? _selectedCollection?.requests.firstOrNull?.id;
+        _syncEditors();
+      }
+    });
+    unawaited(_saveWorkspace());
+  }
+
+  Future<void> _createFolder() async {
+    final collection = _selectedCollection;
+    if (collection == null) return;
+    final name = await _promptText('Create folder', 'Folder name');
+    if (name == null || name.isEmpty) return;
+    final folder = ApiFolder(
+      id: _newId('folder'),
+      collectionId: collection.id,
+      parentId: _selectedFolderId,
+      name: name,
+      sortOrder: collection.folders.length,
+    );
+    _collections = [
+      for (final item in _collections)
+        if (item.id == collection.id)
+          collection.copyWith(
+            folders: [...collection.folders, folder],
+            updatedAt: DateTime.now(),
+          )
+        else
+          item,
+    ];
+    setState(() => _selectedFolderId = folder.id);
+    unawaited(_saveWorkspace());
+  }
+
+  Future<void> _renameFolder(ApiFolder folder) async {
+    final collection = _selectedCollection;
+    if (collection == null) return;
+    final name = await _promptText(
+      'Rename folder',
+      'Folder name',
+      initial: folder.name,
+    );
+    if (name == null || name.isEmpty) return;
+    _collections = [
+      for (final item in _collections)
+        if (item.id == collection.id)
+          collection.copyWith(
+            folders: [
+              for (final current in collection.folders)
+                if (current.id == folder.id)
+                  current.copyWith(name: name)
+                else
+                  current,
+            ],
+            updatedAt: DateTime.now(),
+          )
+        else
+          item,
+    ];
+    setState(() {});
+    unawaited(_saveWorkspace());
   }
 
   void _duplicateRequest() {
@@ -1391,6 +1993,7 @@ class _ApiLabScreenState extends State<ApiLabScreen> {
     ];
     setState(() {
       _selectedRequestId = copy.id;
+      _openRequestIds = [..._openRequestIds, copy.id];
       _syncEditors();
     });
     unawaited(_saveWorkspace());
@@ -1411,6 +2014,12 @@ class _ApiLabScreenState extends State<ApiLabScreen> {
     ];
     setState(() {
       _selectedRequestId = requests.firstOrNull?.id;
+      _openRequestIds =
+          _openRequestIds.where((id) => id != request.id).toList();
+      if (_selectedRequestId != null &&
+          !_openRequestIds.contains(_selectedRequestId)) {
+        _openRequestIds = [..._openRequestIds, _selectedRequestId!];
+      }
       _syncEditors();
     });
     unawaited(_saveWorkspace());
@@ -1433,27 +2042,177 @@ class _ApiLabScreenState extends State<ApiLabScreen> {
   }
 
   Future<void> _showEnvironmentDialog() async {
-    final env =
-        _environments.firstOrNull ??
-        const ApiEnvironment(id: 'default_env', name: 'Local', variables: []);
-    var variables = [...env.variables];
+    var environments =
+        _environments.isEmpty
+            ? const [
+              ApiEnvironment(id: 'default_env', name: 'Local', variables: []),
+            ]
+            : [..._environments];
+    var selectedId = _selectedEnvironmentId ?? environments.first.id;
+    var variables =
+        environments
+            .where((env) => env.id == selectedId)
+            .firstOrNull
+            ?.variables
+            .toList() ??
+        <ApiKeyValue>[];
     await showDialog<void>(
       context: context,
       builder:
           (context) => StatefulBuilder(
             builder:
                 (context, setDialogState) => AlertDialog(
-                  title: const Text('Environment variables'),
+                  title: const Text('Manage environments'),
                   content: SizedBox(
-                    width: 640,
-                    height: 420,
-                    child: Column(
+                    width: 820,
+                    height: 480,
+                    child: Row(
                       children: [
+                        SizedBox(
+                          width: 240,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Expanded(
+                                child: ListView(
+                                  children: [
+                                    for (final env in environments)
+                                      ListTile(
+                                        selected: env.id == selectedId,
+                                        dense: true,
+                                        title: Text(env.name),
+                                        onTap:
+                                            () => setDialogState(() {
+                                              selectedId = env.id;
+                                              variables = [...env.variables];
+                                            }),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                              Wrap(
+                                spacing: 6,
+                                children: [
+                                  IconButton(
+                                    tooltip: 'Create environment',
+                                    onPressed:
+                                        () => setDialogState(() {
+                                          final env = ApiEnvironment(
+                                            id: _newId('env'),
+                                            name:
+                                                'Environment ${environments.length + 1}',
+                                            variables: const [],
+                                          );
+                                          environments = [...environments, env];
+                                          selectedId = env.id;
+                                          variables = [];
+                                        }),
+                                    icon: const Icon(Icons.add),
+                                  ),
+                                  IconButton(
+                                    tooltip: 'Rename environment',
+                                    onPressed: () async {
+                                      final env =
+                                          environments
+                                              .where(
+                                                (item) => item.id == selectedId,
+                                              )
+                                              .firstOrNull;
+                                      if (env == null) return;
+                                      final name = await _promptText(
+                                        'Rename environment',
+                                        'Environment name',
+                                        initial: env.name,
+                                      );
+                                      if (name == null || name.isEmpty) return;
+                                      setDialogState(() {
+                                        environments = [
+                                          for (final item in environments)
+                                            if (item.id == env.id)
+                                              ApiEnvironment(
+                                                id: item.id,
+                                                name: name,
+                                                variables: item.variables,
+                                              )
+                                            else
+                                              item,
+                                        ];
+                                      });
+                                    },
+                                    icon: const Icon(Icons.edit_outlined),
+                                  ),
+                                  IconButton(
+                                    tooltip: 'Duplicate environment',
+                                    onPressed: () {
+                                      final env =
+                                          environments
+                                              .where(
+                                                (item) => item.id == selectedId,
+                                              )
+                                              .firstOrNull;
+                                      if (env == null) return;
+                                      setDialogState(() {
+                                        final copy = ApiEnvironment(
+                                          id: _newId('env'),
+                                          name: '${env.name} Copy',
+                                          variables: [...env.variables],
+                                        );
+                                        environments = [...environments, copy];
+                                        selectedId = copy.id;
+                                        variables = [...copy.variables];
+                                      });
+                                    },
+                                    icon: const Icon(Icons.copy),
+                                  ),
+                                  IconButton(
+                                    tooltip: 'Delete environment',
+                                    onPressed:
+                                        environments.length <= 1
+                                            ? null
+                                            : () => setDialogState(() {
+                                              environments =
+                                                  environments
+                                                      .where(
+                                                        (env) =>
+                                                            env.id !=
+                                                            selectedId,
+                                                      )
+                                                      .toList();
+                                              selectedId =
+                                                  environments.first.id;
+                                              variables = [
+                                                ...environments.first.variables,
+                                              ];
+                                            }),
+                                    icon: const Icon(Icons.delete_outline),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                        const VerticalDivider(width: 1),
                         Expanded(
-                          child: _keyValueEditor(
-                            'Variables',
-                            variables,
-                            (value) => setDialogState(() => variables = value),
+                          child: Padding(
+                            padding: const EdgeInsets.only(left: 12),
+                            child: _keyValueEditor(
+                              'Variables',
+                              variables,
+                              (value) => setDialogState(() {
+                                variables = value;
+                                environments = [
+                                  for (final env in environments)
+                                    if (env.id == selectedId)
+                                      ApiEnvironment(
+                                        id: env.id,
+                                        name: env.name,
+                                        variables: variables,
+                                      )
+                                    else
+                                      env,
+                                ];
+                              }),
+                            ),
                           ),
                         ),
                       ],
@@ -1466,14 +2225,8 @@ class _ApiLabScreenState extends State<ApiLabScreen> {
                     ),
                     FilledButton(
                       onPressed: () {
-                        _environments = [
-                          ApiEnvironment(
-                            id: env.id,
-                            name: env.name,
-                            variables: variables,
-                          ),
-                        ];
-                        _selectedEnvironmentId = env.id;
+                        _environments = environments;
+                        _selectedEnvironmentId = selectedId;
                         unawaited(_saveWorkspace());
                         setState(() {});
                         Navigator.pop(context);
@@ -1517,6 +2270,14 @@ class _ApiLabScreenState extends State<ApiLabScreen> {
                               value: 'csv',
                               child: Text('CSV preview'),
                             ),
+                            DropdownMenuItem(
+                              value: 'curl',
+                              child: Text('cURL request'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'bruno',
+                              child: Text('Bruno JSON export'),
+                            ),
                           ],
                           onChanged:
                               (value) =>
@@ -1555,6 +2316,12 @@ class _ApiLabScreenState extends State<ApiLabScreen> {
                             _showCsvPreview(controller.text);
                             return;
                           }
+                          if (mode == 'curl') {
+                            _importCurl(controller.text);
+                          }
+                          if (mode == 'bruno') {
+                            _importBrunoJson(controller.text);
+                          }
                           Navigator.pop(context);
                         } catch (error) {
                           setDialogState(() => errorText = error.toString());
@@ -1576,21 +2343,27 @@ class _ApiLabScreenState extends State<ApiLabScreen> {
     }
     final collectionId = _newId('collection');
     final requests = <ApiRequest>[];
-    void visit(List items, String? folderName) {
+    final folders = <ApiFolder>[];
+    void visit(List items, String? parentFolderId) {
       for (final item in items.whereType<Map>()) {
         if (item['request'] is Map) {
           requests.add(
             _postmanRequest(
               Map<String, dynamic>.from(item),
               collectionId,
-              folderName,
+              parentFolderId,
             ),
           );
         } else if (item['item'] is List) {
-          visit(
-            item['item'] as List,
-            (item['name'] ?? folderName ?? 'Folder').toString(),
+          final folder = ApiFolder(
+            id: _newId('folder'),
+            collectionId: collectionId,
+            parentId: parentFolderId,
+            name: (item['name'] ?? 'Folder').toString(),
+            sortOrder: folders.length,
           );
+          folders.add(folder);
+          visit(item['item'] as List, folder.id);
         }
       }
     }
@@ -1602,7 +2375,7 @@ class _ApiLabScreenState extends State<ApiLabScreen> {
       name:
           (_map(json['info'])['name'] ?? 'Imported Postman Collection')
               .toString(),
-      folders: const [],
+      folders: folders,
       requests:
           requests.isEmpty ? [ApiRequest.defaults(collectionId)] : requests,
       createdAt: now,
@@ -1621,7 +2394,7 @@ class _ApiLabScreenState extends State<ApiLabScreen> {
   ApiRequest _postmanRequest(
     Map<String, dynamic> item,
     String collectionId,
-    String? folderName,
+    String? folderId,
   ) {
     final request = _map(item['request']);
     final body = _map(request['body']);
@@ -1634,10 +2407,8 @@ class _ApiLabScreenState extends State<ApiLabScreen> {
     return ApiRequest(
       id: _newId('request'),
       collectionId: collectionId,
-      name:
-          folderName == null
-              ? (item['name'] ?? 'Request').toString()
-              : '$folderName / ${(item['name'] ?? 'Request')}',
+      folderId: folderId,
+      name: (item['name'] ?? 'Request').toString(),
       method: (request['method'] ?? 'GET').toString(),
       url: rawUrl,
       headers:
@@ -1705,12 +2476,7 @@ class _ApiLabScreenState extends State<ApiLabScreen> {
   }
 
   Future<void> _showCsvPreview(String text) async {
-    final rows =
-        text
-            .trim()
-            .split(RegExp(r'\r?\n'))
-            .map((line) => line.split(','))
-            .toList();
+    final rows = _parseCsv(text);
     await showDialog<void>(
       context: context,
       builder:
@@ -1743,6 +2509,74 @@ class _ApiLabScreenState extends State<ApiLabScreen> {
             ],
           ),
     );
+  }
+
+  void _importBrunoJson(String text) {
+    final json = jsonDecode(text);
+    if (json is! Map) {
+      throw const FormatException('Expected Bruno JSON object.');
+    }
+    final name =
+        (json['name'] ?? _map(json['meta'])['name'] ?? 'Imported Bruno Request')
+            .toString();
+    final collection = _selectedCollection ?? ApiCollection.defaults();
+    if (_selectedCollection == null) {
+      _collections = [collection];
+      _selectedCollectionId = collection.id;
+    }
+    final request = ApiRequest.defaults(collection.id).copyWith(
+      name: name,
+      method:
+          (json['method'] ?? _map(json['request'])['method'] ?? 'GET')
+              .toString()
+              .toUpperCase(),
+      url: (json['url'] ?? _map(json['request'])['url'] ?? '').toString(),
+      body: (json['body'] ?? _map(json['request'])['body'] ?? '').toString(),
+      updatedAt: DateTime.now(),
+    );
+    _collections = [
+      for (final item in _collections)
+        if (item.id == collection.id)
+          collection.copyWith(
+            requests: [...collection.requests, request],
+            updatedAt: DateTime.now(),
+          )
+        else
+          item,
+    ];
+    setState(() {
+      _selectedRequestId = request.id;
+      _openRequestIds = [..._openRequestIds, request.id];
+      _status = 'Imported Bruno JSON request. Folder import is planned.';
+      _syncEditors();
+    });
+    unawaited(_saveWorkspace());
+  }
+
+  void _importCurl(String text) {
+    final request = _requestFromCurl(text);
+    final collection = _selectedCollection;
+    if (collection == null || request == null) {
+      throw const FormatException('Could not parse cURL request.');
+    }
+    final next = request.copyWith(collectionId: collection.id);
+    _collections = [
+      for (final item in _collections)
+        if (item.id == collection.id)
+          collection.copyWith(
+            requests: [...collection.requests, next],
+            updatedAt: DateTime.now(),
+          )
+        else
+          item,
+    ];
+    setState(() {
+      _selectedRequestId = next.id;
+      _openRequestIds = [..._openRequestIds, next.id];
+      _syncEditors();
+      _status = 'Imported cURL request.';
+    });
+    unawaited(_saveWorkspace());
   }
 
   Future<void> _exportDialog() async {
@@ -1783,39 +2617,67 @@ class _ApiLabScreenState extends State<ApiLabScreen> {
   }
 
   Map<String, dynamic> _postmanExport(ApiCollection collection) {
+    List<Map<String, dynamic>> folderItems(String? parentId) {
+      final items = <Map<String, dynamic>>[];
+      for (final folder in _childFolders(collection, parentId)) {
+        items.add({'name': folder.name, 'item': folderItems(folder.id)});
+      }
+      for (final request in collection.requests.where(
+        (request) => request.folderId == parentId,
+      )) {
+        items.add(_postmanRequestExport(request));
+      }
+      return items;
+    }
+
     return {
       'info': {
         'name': collection.name,
         'schema':
             'https://schema.getpostman.com/json/collection/v2.1.0/collection.json',
       },
-      'item': [
-        for (final request in collection.requests)
-          {
-            'name': request.name,
-            'request': {
-              'method': request.method,
-              'header':
-                  request.headers
-                      .map(
-                        (item) => {
-                          'key': item.key,
-                          'value': item.value,
-                          'disabled': !item.enabled,
-                        },
-                      )
-                      .toList(),
-              'url': {'raw': request.url},
-              'body': {
-                'mode':
-                    request.bodyType == ApiBodyType.formUrlEncoded
-                        ? 'urlencoded'
-                        : 'raw',
-                'raw': request.body,
-              },
-            },
-          },
-      ],
+      'item': folderItems(null),
+    };
+  }
+
+  Map<String, dynamic> _postmanRequestExport(ApiRequest request) {
+    return {
+      'name': request.name,
+      'request': {
+        'method': request.method,
+        'header':
+            request.headers
+                .map(
+                  (item) => {
+                    'key': item.key,
+                    'value': item.value,
+                    'disabled': !item.enabled,
+                    if (item.description.isNotEmpty)
+                      'description': item.description,
+                  },
+                )
+                .toList(),
+        'url': {
+          'raw': request.url,
+          'query':
+              request.queryParams
+                  .map(
+                    (item) => {
+                      'key': item.key,
+                      'value': item.value,
+                      'disabled': !item.enabled,
+                    },
+                  )
+                  .toList(),
+        },
+        'body': {
+          'mode':
+              request.bodyType == ApiBodyType.formUrlEncoded
+                  ? 'urlencoded'
+                  : 'raw',
+          'raw': request.body,
+        },
+      },
     };
   }
 
@@ -1836,6 +2698,127 @@ class _ApiLabScreenState extends State<ApiLabScreen> {
         if (i != index) values[i],
     ];
   }
+
+  List<ApiKeyValue> _parseBulkKeyValues(String text) {
+    return text
+        .split(RegExp(r'\r?\n'))
+        .map((line) => line.trim())
+        .where((line) => line.isNotEmpty)
+        .map((line) {
+          final colon = line.indexOf(':');
+          final equals = line.indexOf('=');
+          final split =
+              colon >= 0 ? colon : (equals >= 0 ? equals : line.length);
+          return ApiKeyValue(
+            key: line.substring(0, split).trim(),
+            value: split >= line.length ? '' : line.substring(split + 1).trim(),
+          );
+        })
+        .where((item) => item.key.isNotEmpty)
+        .toList();
+  }
+
+  List<ApiKeyValue> _headerTemplates() {
+    return const [
+      ApiKeyValue(
+        key: 'Accept',
+        value: 'application/json',
+        description: 'Prefer JSON responses.',
+      ),
+      ApiKeyValue(
+        key: 'Content-Type',
+        value: 'application/json',
+        description: 'Send JSON request body.',
+      ),
+      ApiKeyValue(
+        key: 'Content-Type',
+        value: 'application/x-www-form-urlencoded',
+        description: 'Send form URL encoded body.',
+      ),
+      ApiKeyValue(
+        key: 'Authorization',
+        value: 'Bearer {{token}}',
+        description: 'Bearer token variable template.',
+      ),
+      ApiKeyValue(
+        key: 'User-Agent',
+        value: 'TestDeck/1.0.0',
+        description: 'Identify TestDeck requests.',
+      ),
+      ApiKeyValue(
+        key: 'X-Request-Id',
+        value: r'{{$uuid}}',
+        description: 'Unique request correlation ID.',
+      ),
+      ApiKeyValue(
+        key: 'Cache-Control',
+        value: 'no-cache',
+        description: 'Bypass cached responses.',
+      ),
+    ];
+  }
+
+  String _requestToCurl(ApiRequest request) {
+    final parts = ['curl', '-X', request.method, _shellQuote(request.url)];
+    for (final header in request.headers.where(
+      (item) => item.enabled && item.key.trim().isNotEmpty,
+    )) {
+      parts.addAll(['-H', _shellQuote('${header.key}: ${header.value}')]);
+    }
+    if (request.body.trim().isNotEmpty &&
+        request.bodyType != ApiBodyType.none) {
+      parts.addAll(['--data', _shellQuote(request.body)]);
+    }
+    return parts.join(' ');
+  }
+
+  ApiRequest? _requestFromCurl(String text) {
+    final tokens = _splitCommandLine(text);
+    if (tokens.isEmpty || tokens.first != 'curl') return null;
+    var method = 'GET';
+    var url = '';
+    var body = '';
+    final headers = <ApiKeyValue>[];
+    for (var i = 1; i < tokens.length; i++) {
+      final token = tokens[i];
+      if ((token == '-X' || token == '--request') && i + 1 < tokens.length) {
+        method = tokens[++i].toUpperCase();
+      } else if ((token == '-H' || token == '--header') &&
+          i + 1 < tokens.length) {
+        final header = tokens[++i];
+        final split = header.indexOf(':');
+        if (split > 0) {
+          headers.add(
+            ApiKeyValue(
+              key: header.substring(0, split).trim(),
+              value: header.substring(split + 1).trim(),
+            ),
+          );
+        }
+      } else if ((token == '-d' ||
+              token == '--data' ||
+              token == '--data-raw' ||
+              token == '--data-binary') &&
+          i + 1 < tokens.length) {
+        body = tokens[++i];
+        if (method == 'GET') method = 'POST';
+      } else if (!token.startsWith('-')) {
+        url = token;
+      }
+    }
+    if (url.isEmpty) return null;
+    return ApiRequest.defaults(_selectedCollection?.id ?? '').copyWith(
+      id: _newId('request'),
+      name: 'Imported cURL',
+      method: method,
+      url: url,
+      headers: headers.isEmpty ? _defaultRequestHeaders() : headers,
+      bodyType: body.trim().isEmpty ? ApiBodyType.none : ApiBodyType.raw,
+      body: body,
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+    );
+  }
 }
 
 class _ResolvedRequest {
@@ -1850,6 +2833,118 @@ class _ResolvedRequest {
   final Map<String, String> queryParameters;
   final Map<String, String> headers;
   final Object? data;
+}
+
+const Object _notSet = Object();
+
+List<ApiKeyValue> _defaultRequestHeaders() {
+  return const [
+    ApiKeyValue(
+      key: 'Accept',
+      value: 'application/json',
+      enabled: true,
+      description: 'Default JSON response preference.',
+    ),
+    ApiKeyValue(
+      key: 'Content-Type',
+      value: 'application/json',
+      enabled: false,
+      description: 'Enable for JSON request bodies.',
+    ),
+    ApiKeyValue(
+      key: 'Authorization',
+      value: 'Bearer {{token}}',
+      enabled: false,
+      description: 'Enable and define token in an environment.',
+    ),
+  ];
+}
+
+Color _methodColor(String method) {
+  return switch (method.toUpperCase()) {
+    'GET' => const Color(0xFF059669),
+    'POST' => const Color(0xFF2563EB),
+    'PUT' => const Color(0xFFD97706),
+    'PATCH' => const Color(0xFF7C3AED),
+    'DELETE' => const Color(0xFFDC2626),
+    _ => const Color(0xFF475569),
+  };
+}
+
+Color _statusColor(int? statusCode) {
+  if (statusCode == null) return const Color(0xFFDC2626);
+  if (statusCode >= 200 && statusCode < 300) return const Color(0xFF059669);
+  if (statusCode >= 300 && statusCode < 400) return const Color(0xFF2563EB);
+  if (statusCode >= 400 && statusCode < 500) return const Color(0xFFD97706);
+  return const Color(0xFFDC2626);
+}
+
+String _previewText(String text) {
+  final pretty = _prettyJson(text);
+  if (pretty.length <= 12000) return pretty;
+  return '${pretty.substring(0, 12000)}\n\n...preview truncated...';
+}
+
+List<List<String>> _parseCsv(String text) {
+  final rows = <List<String>>[];
+  final current = <String>[];
+  final cell = StringBuffer();
+  var inQuotes = false;
+  for (var i = 0; i < text.length; i++) {
+    final char = text[i];
+    final next = i + 1 < text.length ? text[i + 1] : '';
+    if (char == '"' && inQuotes && next == '"') {
+      cell.write('"');
+      i++;
+    } else if (char == '"') {
+      inQuotes = !inQuotes;
+    } else if (char == ',' && !inQuotes) {
+      current.add(cell.toString());
+      cell.clear();
+    } else if ((char == '\n' || char == '\r') && !inQuotes) {
+      if (char == '\r' && next == '\n') i++;
+      current.add(cell.toString());
+      cell.clear();
+      if (current.any((value) => value.trim().isNotEmpty)) {
+        rows.add([...current]);
+      }
+      current.clear();
+    } else {
+      cell.write(char);
+    }
+  }
+  current.add(cell.toString());
+  if (current.any((value) => value.trim().isNotEmpty)) rows.add(current);
+  return rows;
+}
+
+String _shellQuote(String value) {
+  return "'${value.replaceAll("'", r"'\''")}'";
+}
+
+List<String> _splitCommandLine(String input) {
+  final tokens = <String>[];
+  final current = StringBuffer();
+  String? quote;
+  for (var i = 0; i < input.length; i++) {
+    final char = input[i];
+    if ((char == '"' || char == "'") && quote == null) {
+      quote = char;
+    } else if (char == quote) {
+      quote = null;
+    } else if (char.trim().isEmpty && quote == null) {
+      if (current.isNotEmpty) {
+        tokens.add(current.toString());
+        current.clear();
+      }
+    } else if (char == '\\' && i + 1 < input.length) {
+      current.write(input[++i]);
+    } else {
+      current.write(char);
+    }
+  }
+  if (current.isNotEmpty) tokens.add(current.toString());
+  return tokens;
 }
 
 String _newId(String prefix) {

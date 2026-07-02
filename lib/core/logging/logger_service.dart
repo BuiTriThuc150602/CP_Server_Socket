@@ -30,7 +30,7 @@ class LoggerService {
     } catch (error, stackTrace) {
       developer.log(
         'Logger initialization failed',
-        name: 'SocketTestingTools.Logger',
+        name: 'TestDeck.Logger',
         error: error,
         stackTrace: stackTrace,
       );
@@ -45,7 +45,7 @@ class LoggerService {
     if (error != null) {
       developer.log(
         message,
-        name: 'SocketTestingTools.Logger',
+        name: 'TestDeck.Logger',
         error: error,
         stackTrace: stackTrace,
       );
@@ -118,7 +118,7 @@ class LoggerService {
     } catch (error, stackTrace) {
       developer.log(
         'Logger write failed',
-        name: 'SocketTestingTools.Logger',
+        name: 'TestDeck.Logger',
         error: error,
         stackTrace: stackTrace,
       );

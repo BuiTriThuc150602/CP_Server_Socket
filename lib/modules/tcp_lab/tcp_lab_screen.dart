@@ -2,11 +2,11 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:socket_server/core/models/socket_console_entry.dart';
-import 'package:socket_server/core/socket/tcp_client_engine.dart';
-import 'package:socket_server/core/socket/tcp_server_engine.dart';
-import 'package:socket_server/core/ui/module_workbench.dart';
-import 'package:socket_server/core/ui/payload_composer.dart';
+import 'package:testdeck/core/models/socket_console_entry.dart';
+import 'package:testdeck/core/socket/tcp_client_engine.dart';
+import 'package:testdeck/core/socket/tcp_server_engine.dart';
+import 'package:testdeck/core/ui/module_workbench.dart';
+import 'package:testdeck/core/ui/payload_composer.dart';
 
 class TcpLabScreen extends StatefulWidget {
   const TcpLabScreen({super.key});

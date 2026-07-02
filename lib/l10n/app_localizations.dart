@@ -101,13 +101,13 @@ abstract class AppLocalizations {
   /// No description provided for @appTitle.
   ///
   /// In en, this message translates to:
-  /// **'Socket Testing Tools'**
+  /// **'TestDeck'**
   String get appTitle;
 
   /// No description provided for @chooseModule.
   ///
   /// In en, this message translates to:
-  /// **'Choose a desktop testing module to begin.'**
+  /// **'Developer Testing Workbench for API, socket, serial, terminal, payload, and simulator workflows.'**
   String get chooseModule;
 
   /// No description provided for @system.

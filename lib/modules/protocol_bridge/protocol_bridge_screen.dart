@@ -2,11 +2,11 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:socket_server/core/models/socket_console_entry.dart';
-import 'package:socket_server/core/socket/tcp_server_engine.dart';
-import 'package:socket_server/core/ui/module_workbench.dart';
-import 'package:socket_server/core/utils/payload_codec.dart';
-import 'package:socket_server/modules/websocket_lab/services/websocket_client_engine.dart';
+import 'package:testdeck/core/models/socket_console_entry.dart';
+import 'package:testdeck/core/socket/tcp_server_engine.dart';
+import 'package:testdeck/core/ui/module_workbench.dart';
+import 'package:testdeck/core/utils/payload_codec.dart';
+import 'package:testdeck/modules/websocket_lab/services/websocket_client_engine.dart';
 
 enum BridgeTarget { consoleOnly, websocket }
 

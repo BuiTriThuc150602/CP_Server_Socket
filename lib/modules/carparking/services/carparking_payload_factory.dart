@@ -1,7 +1,7 @@
 import 'dart:convert';
 
 import 'package:intl/intl.dart';
-import 'package:socket_server/modules/carparking/models/carparking_models.dart';
+import 'package:testdeck/modules/carparking/models/carparking_models.dart';
 
 class CarParkingPayloadFactory {
   const CarParkingPayloadFactory();

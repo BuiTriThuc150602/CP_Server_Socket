@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_pty/flutter_pty.dart';
 import 'package:provider/provider.dart';
-import 'package:socket_server/app/app_settings_controller.dart';
+import 'package:testdeck/app/app_settings_controller.dart';
 import 'package:xterm/xterm.dart';
 
 class InteractiveTerminalPanel extends StatefulWidget {
@@ -27,6 +27,7 @@ class _InteractiveTerminalPanelState extends State<InteractiveTerminalPanel> {
   StreamSubscription<Uint8List>? _outputSubscription;
   bool _starting = false;
   bool _warningVisible = true;
+  bool _failedDuringStartup = false;
   int _rows = 25;
   int _columns = 80;
 
@@ -46,7 +47,7 @@ class _InteractiveTerminalPanelState extends State<InteractiveTerminalPanel> {
         _pty?.resize(_rows, _columns);
       },
     );
-    _writeTerminal('Socket Testing Tools interactive terminal\r\n');
+    _writeTerminal('TestDeck interactive terminal\r\n');
     _writeTerminal(
       'Select a shell and press Start. Commands run on this machine.\r\n',
     );
@@ -57,9 +58,14 @@ class _InteractiveTerminalPanelState extends State<InteractiveTerminalPanel> {
     super.didChangeDependencies();
     final savedShell =
         context.read<AppSettingsController>().settings.terminalShellCommand;
+    final savedLaunchMode =
+        context.read<AppSettingsController>().settings.terminalShellLaunchMode;
     if (!_running && savedShell.isNotEmpty) {
       _selectedShell = _shells.firstWhere(
-        (shell) => shell.command == savedShell,
+        (shell) =>
+            shell.command == savedShell &&
+            (savedLaunchMode.isEmpty ||
+                shell.launchMode.name == savedLaunchMode),
         orElse: () => _selectedShell,
       );
     }
@@ -117,11 +123,25 @@ class _InteractiveTerminalPanelState extends State<InteractiveTerminalPanel> {
                             : (value) {
                               final shell = value ?? _selectedShell;
                               setState(() => _selectedShell = shell);
-                              settings.setTerminalShellCommand(shell.command);
+                              settings.setTerminalShellCommand(
+                                shell.command,
+                                launchMode: shell.launchMode.name,
+                              );
                             },
                   ),
                 ),
               ),
+              if (_selectedShell.helpText.isNotEmpty) ...[
+                const SizedBox(width: 4),
+                Tooltip(
+                  message: _selectedShell.helpText,
+                  child: Icon(
+                    Icons.info_outline,
+                    size: 18,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
               const SizedBox(width: 8),
               FilledButton.icon(
                 onPressed:
@@ -131,9 +151,9 @@ class _InteractiveTerminalPanelState extends State<InteractiveTerminalPanel> {
               ),
               const SizedBox(width: 8),
               OutlinedButton.icon(
-                onPressed: _copyTerminalOutput,
+                onPressed: _copyPlainTerminalOutput,
                 icon: const Icon(Icons.copy_all, size: 16),
-                label: const Text('Copy'),
+                label: const Text('Copy plain'),
               ),
               const SizedBox(width: 8),
               OutlinedButton.icon(
@@ -201,24 +221,45 @@ class _InteractiveTerminalPanelState extends State<InteractiveTerminalPanel> {
     );
   }
 
-  Future<void> _startShell() async {
+  Future<void> _startShell({
+    _ShellSpec? shellOverride,
+    bool allowFallback = true,
+  }) async {
     if (_running || _starting) return;
     setState(() => _starting = true);
     try {
-      final shell = _selectedShell;
+      final shell = shellOverride ?? _selectedShell;
+      _failedDuringStartup = false;
       _writeTerminal(
-        '\r\n[Starting ${shell.command} ${shell.arguments.join(' ')}]\r\n',
+        '\r\n[Starting ${shell.label}: ${shell.launchCommand} ${shell.launchArguments.join(' ')}]\r\n',
       );
       final pty = Pty.start(
-        shell.command,
-        arguments: shell.arguments,
+        shell.launchCommand,
+        arguments: shell.launchArguments,
         workingDirectory: Directory.current.path,
         rows: _rows,
         columns: _columns,
       );
       _pty = pty;
+      final startupWatch = Timer(const Duration(seconds: 2), () {
+        if (mounted && identical(_pty, pty)) {
+          setState(() => _starting = false);
+        } else {
+          _starting = false;
+        }
+      });
       _outputSubscription = pty.output.listen(
-        (data) => _writeTerminal(utf8.decode(data, allowMalformed: true)),
+        (data) {
+          final text = utf8.decode(data, allowMalformed: true);
+          if (text.contains('8009001d') ||
+              text.contains('Loading managed Windows PowerShell failed')) {
+            _failedDuringStartup = true;
+            _writeTerminal(
+              '\r\n[Windows PowerShell failed to initialize in PTY. Falling back to CMD or PowerShell via CMD wrapper.]\r\n',
+            );
+          }
+          _writeTerminal(text);
+        },
         onError:
             (Object error) =>
                 _writeTerminal('\r\n[PTY output error] $error\r\n'),
@@ -226,23 +267,34 @@ class _InteractiveTerminalPanelState extends State<InteractiveTerminalPanel> {
       );
       unawaited(
         pty.exitCode.then((code) {
+          startupWatch.cancel();
+          final canFallback =
+              allowFallback &&
+              identical(_pty, pty) &&
+              shell.fallback != null &&
+              (_starting || _failedDuringStartup);
           _writeTerminal('\r\n[Process exited with code $code]\r\n');
           _outputSubscription?.cancel();
           _outputSubscription = null;
-          if (mounted) {
-            setState(() {
-              _pty = null;
-              _starting = false;
-            });
-          } else {
+          if (identical(_pty, pty)) {
             _pty = null;
-            _starting = false;
           }
+          _starting = false;
+          if (canFallback) {
+            _writeTerminal(
+              '[Direct shell failed during startup. Trying ${shell.fallback!.label}.]\r\n',
+            );
+            unawaited(
+              _startShell(shellOverride: shell.fallback, allowFallback: false),
+            );
+            return;
+          }
+          if (mounted) setState(() {});
         }),
       );
-      if (mounted) setState(() => _starting = false);
     } catch (error) {
-      _writeTerminal('\r\n[Failed to start shell] $error\r\n');
+      final shell = shellOverride ?? _selectedShell;
+      _writeTerminal('\r\n[Failed to start ${shell.label}] $error\r\n');
       if (mounted) {
         setState(() {
           _pty = null;
@@ -251,6 +303,10 @@ class _InteractiveTerminalPanelState extends State<InteractiveTerminalPanel> {
       } else {
         _pty = null;
         _starting = false;
+      }
+      if (allowFallback && shell.fallback != null) {
+        _writeTerminal('[Trying ${shell.fallback!.label}.]\r\n');
+        await _startShell(shellOverride: shell.fallback, allowFallback: false);
       }
     }
   }
@@ -280,8 +336,10 @@ class _InteractiveTerminalPanelState extends State<InteractiveTerminalPanel> {
     _transcript.clear();
   }
 
-  Future<void> _copyTerminalOutput() async {
-    await Clipboard.setData(ClipboardData(text: _transcript.toString()));
+  Future<void> _copyPlainTerminalOutput() async {
+    await Clipboard.setData(
+      ClipboardData(text: _stripAnsi(_transcript.toString())),
+    );
   }
 
   void _writeToPty(String output) {
@@ -300,52 +358,172 @@ class _InteractiveTerminalPanelState extends State<InteractiveTerminalPanel> {
 
   List<_ShellSpec> _detectShells() {
     if (Platform.isWindows) {
-      return const [
-        _ShellSpec(
-          label: 'PowerShell',
-          command: 'powershell.exe',
-          arguments: ['-NoLogo'],
-        ),
-        _ShellSpec(label: 'Command Prompt', command: 'cmd.exe'),
-        _ShellSpec(
-          label: 'PowerShell Core',
-          command: 'pwsh.exe',
-          arguments: ['-NoLogo'],
+      final shells = <_ShellSpec>[
+        const _ShellSpec(
+          label: 'Command Prompt',
+          command: 'cmd.exe',
+          launchMode: _ShellLaunchMode.direct,
         ),
       ];
+      final windowsPowerShell = _windowsPowerShellPath();
+      final windowsPowerShellWrapper = _ShellSpec(
+        label: 'Windows PowerShell via CMD wrapper',
+        command: windowsPowerShell,
+        arguments: const [
+          '-NoLogo',
+          '-NoProfile',
+          '-ExecutionPolicy',
+          'Bypass',
+        ],
+        launchMode: _ShellLaunchMode.cmdWrapper,
+        helpText: 'Use this if direct Windows PowerShell fails in PTY.',
+      );
+      shells.add(
+        _ShellSpec(
+          label: 'Windows PowerShell direct',
+          command: windowsPowerShell,
+          arguments: const [
+            '-NoLogo',
+            '-NoProfile',
+            '-ExecutionPolicy',
+            'Bypass',
+            '-NoExit',
+          ],
+          launchMode: _ShellLaunchMode.direct,
+          helpText: 'If this fails, use CMD wrapper mode.',
+          fallback: windowsPowerShellWrapper,
+        ),
+      );
+      shells.add(windowsPowerShellWrapper);
+
+      final pwsh = _findExecutable('pwsh', const [
+        r'C:\Program Files\PowerShell\7\pwsh.exe',
+      ]);
+      if (pwsh != null) {
+        final pwshWrapper = _ShellSpec(
+          label: 'PowerShell Core via CMD wrapper',
+          command: pwsh,
+          arguments: const ['-NoLogo', '-NoProfile', '-NoExit'],
+          launchMode: _ShellLaunchMode.cmdWrapper,
+          helpText: 'Use this if direct PowerShell Core fails in PTY.',
+        );
+        shells
+          ..add(
+            _ShellSpec(
+              label: 'PowerShell Core direct',
+              command: pwsh,
+              arguments: const ['-NoLogo', '-NoProfile', '-NoExit'],
+              launchMode: _ShellLaunchMode.direct,
+              helpText: 'If this fails, use CMD wrapper mode.',
+              fallback: pwshWrapper,
+            ),
+          )
+          ..add(pwshWrapper);
+      }
+      return shells;
     }
     final shell = Platform.environment['SHELL'];
     return [
       if (shell != null && shell.trim().isNotEmpty)
-        _ShellSpec(label: 'Default shell', command: shell),
-      const _ShellSpec(label: 'bash', command: '/bin/bash', arguments: ['-l']),
-      const _ShellSpec(label: 'zsh', command: '/bin/zsh', arguments: ['-l']),
-      const _ShellSpec(label: 'sh', command: '/bin/sh'),
+        _ShellSpec(
+          label: 'Default shell',
+          command: shell,
+          launchMode: _ShellLaunchMode.direct,
+        ),
+      const _ShellSpec(
+        label: 'bash',
+        command: '/bin/bash',
+        arguments: ['-l'],
+        launchMode: _ShellLaunchMode.direct,
+      ),
+      const _ShellSpec(
+        label: 'zsh',
+        command: '/bin/zsh',
+        arguments: ['-l'],
+        launchMode: _ShellLaunchMode.direct,
+      ),
+      const _ShellSpec(
+        label: 'sh',
+        command: '/bin/sh',
+        launchMode: _ShellLaunchMode.direct,
+      ),
     ];
   }
+
+  String _windowsPowerShellPath() {
+    const absolute =
+        r'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe';
+    return File(absolute).existsSync() ? absolute : 'powershell.exe';
+  }
+
+  String? _findExecutable(String executable, List<String> commonPaths) {
+    for (final path in commonPaths) {
+      if (File(path).existsSync()) return path;
+    }
+    try {
+      final result = Process.runSync('where.exe', [executable]);
+      if (result.exitCode == 0) {
+        final first =
+            result.stdout
+                .toString()
+                .split(RegExp(r'\r?\n'))
+                .map((line) => line.trim())
+                .where((line) => line.isNotEmpty)
+                .firstOrNull;
+        if (first != null) return first;
+      }
+    } catch (_) {
+      // Keep the terminal UI alive even if shell probing is unavailable.
+    }
+    return null;
+  }
 }
+
+enum _ShellLaunchMode { direct, cmdWrapper }
 
 class _ShellSpec {
   const _ShellSpec({
     required this.label,
     required this.command,
+    required this.launchMode,
     this.arguments = const [],
+    this.helpText = '',
+    this.fallback,
   });
 
   final String label;
   final String command;
+  final _ShellLaunchMode launchMode;
   final List<String> arguments;
+  final String helpText;
+  final _ShellSpec? fallback;
+
+  String get launchCommand {
+    return switch (launchMode) {
+      _ShellLaunchMode.direct => command,
+      _ShellLaunchMode.cmdWrapper => 'cmd.exe',
+    };
+  }
+
+  List<String> get launchArguments {
+    return switch (launchMode) {
+      _ShellLaunchMode.direct => arguments,
+      _ShellLaunchMode.cmdWrapper => ['/K', _cmdLine(command, arguments)],
+    };
+  }
 
   @override
   bool operator ==(Object other) {
     return other is _ShellSpec &&
         other.label == label &&
         other.command == command &&
+        other.launchMode == launchMode &&
         _listEquals(other.arguments, arguments);
   }
 
   @override
-  int get hashCode => Object.hash(label, command, Object.hashAll(arguments));
+  int get hashCode =>
+      Object.hash(label, command, launchMode, Object.hashAll(arguments));
 }
 
 bool _listEquals(List<String> a, List<String> b) {
@@ -358,4 +536,21 @@ bool _listEquals(List<String> a, List<String> b) {
     }
   }
   return true;
+}
+
+String _cmdLine(String command, List<String> arguments) {
+  final executable = command.contains(' ') ? '"$command"' : command;
+  return ([executable, ...arguments]).join(' ');
+}
+
+String _stripAnsi(String input) {
+  return input.replaceAll(RegExp(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])'), '');
+}
+
+extension _FirstOrNull<T> on Iterable<T> {
+  T? get firstOrNull {
+    final iterator = this.iterator;
+    if (iterator.moveNext()) return iterator.current;
+    return null;
+  }
 }

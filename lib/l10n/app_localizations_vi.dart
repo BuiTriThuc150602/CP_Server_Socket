@@ -9,10 +9,11 @@ class AppLocalizationsVi extends AppLocalizations {
   AppLocalizationsVi([String locale = 'vi']) : super(locale);
 
   @override
-  String get appTitle => 'Socket Testing Tools';
+  String get appTitle => 'TestDeck';
 
   @override
-  String get chooseModule => 'Chọn một module kiểm thử desktop để bắt đầu.';
+  String get chooseModule =>
+      'Developer Testing Workbench cho API, socket, serial, terminal, payload và các luồng mô phỏng.';
 
   @override
   String get system => 'Hệ thống';

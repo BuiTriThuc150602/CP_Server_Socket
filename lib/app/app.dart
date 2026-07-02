@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
-import 'package:socket_server/app/app_settings_controller.dart';
-import 'package:socket_server/app/module_registry.dart';
-import 'package:socket_server/l10n/app_localizations.dart';
+import 'package:testdeck/app/app_settings_controller.dart';
+import 'package:testdeck/app/module_registry.dart';
+import 'package:testdeck/l10n/app_localizations.dart';
 
-class SocketTestingToolsApp extends StatelessWidget {
-  const SocketTestingToolsApp({super.key});
+class TestDeckApp extends StatelessWidget {
+  const TestDeckApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -15,7 +15,7 @@ class SocketTestingToolsApp extends StatelessWidget {
       child: Consumer<AppSettingsController>(
         builder: (context, settings, _) {
           return MaterialApp(
-            title: 'Socket Testing Tools',
+            title: 'TestDeck',
             debugShowCheckedModeBanner: false,
             theme: _buildTheme(Brightness.light),
             darkTheme: _buildTheme(Brightness.dark),

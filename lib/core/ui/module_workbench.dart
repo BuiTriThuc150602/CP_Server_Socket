@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:socket_server/core/models/socket_console_entry.dart';
-import 'package:socket_server/core/ui/socket_console_panel.dart';
+import 'package:testdeck/core/models/socket_console_entry.dart';
+import 'package:testdeck/core/ui/socket_console_panel.dart';
 
 class ModuleWorkbench extends StatelessWidget {
   const ModuleWorkbench({

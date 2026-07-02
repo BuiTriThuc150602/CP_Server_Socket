@@ -1,5 +1,5 @@
-name: socket_server
-description: "Socket Server Flutter App with data persistence"
+name: testdeck
+description: "Developer testing workbench for API, socket, serial, terminal, payload, and CarParking simulation."
 
 publish_to: 'none' 
 version: 1.0.0+1
@@ -33,3 +33,5 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   generate: true
+  assets:
+    - assets/branding/testdeck_icon.png

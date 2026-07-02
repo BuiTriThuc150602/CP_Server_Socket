@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:socket_server/app/app_settings.dart';
-import 'package:socket_server/core/storage/app_settings_repository.dart';
+import 'package:testdeck/app/app_settings.dart';
+import 'package:testdeck/core/storage/app_settings_repository.dart';
 
 class AppSettingsController extends ChangeNotifier {
   AppSettingsController({AppSettingsRepository? repository})
@@ -42,8 +42,14 @@ class AppSettingsController extends ChangeNotifier {
     await _repository.save(_settings);
   }
 
-  Future<void> setTerminalShellCommand(String command) async {
-    _settings = _settings.copyWith(terminalShellCommand: command);
+  Future<void> setTerminalShellCommand(
+    String command, {
+    String launchMode = '',
+  }) async {
+    _settings = _settings.copyWith(
+      terminalShellCommand: command,
+      terminalShellLaunchMode: launchMode,
+    );
     notifyListeners();
     await _repository.save(_settings);
   }

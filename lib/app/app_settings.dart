@@ -5,6 +5,7 @@ class AppSettings {
     required this.themeMode,
     required this.localeCode,
     required this.terminalShellCommand,
+    required this.terminalShellLaunchMode,
     required this.terminalWarningDismissed,
   });
 
@@ -13,6 +14,7 @@ class AppSettings {
       themeMode: ThemeMode.system,
       localeCode: 'system',
       terminalShellCommand: '',
+      terminalShellLaunchMode: '',
       terminalWarningDismissed: false,
     );
   }
@@ -22,6 +24,8 @@ class AppSettings {
       themeMode: _themeModeFromName(json['themeMode']),
       localeCode: _localeCode(json['localeCode']),
       terminalShellCommand: (json['terminalShellCommand'] ?? '').toString(),
+      terminalShellLaunchMode:
+          (json['terminalShellLaunchMode'] ?? '').toString(),
       terminalWarningDismissed: json['terminalWarningDismissed'] == true,
     );
   }
@@ -29,6 +33,7 @@ class AppSettings {
   final ThemeMode themeMode;
   final String localeCode;
   final String terminalShellCommand;
+  final String terminalShellLaunchMode;
   final bool terminalWarningDismissed;
 
   Locale? get locale {
@@ -44,6 +49,7 @@ class AppSettings {
       'themeMode': themeMode.name,
       'localeCode': localeCode,
       'terminalShellCommand': terminalShellCommand,
+      'terminalShellLaunchMode': terminalShellLaunchMode,
       'terminalWarningDismissed': terminalWarningDismissed,
     };
   }
@@ -52,12 +58,15 @@ class AppSettings {
     ThemeMode? themeMode,
     String? localeCode,
     String? terminalShellCommand,
+    String? terminalShellLaunchMode,
     bool? terminalWarningDismissed,
   }) {
     return AppSettings(
       themeMode: themeMode ?? this.themeMode,
       localeCode: localeCode ?? this.localeCode,
       terminalShellCommand: terminalShellCommand ?? this.terminalShellCommand,
+      terminalShellLaunchMode:
+          terminalShellLaunchMode ?? this.terminalShellLaunchMode,
       terminalWarningDismissed:
           terminalWarningDismissed ?? this.terminalWarningDismissed,
     );

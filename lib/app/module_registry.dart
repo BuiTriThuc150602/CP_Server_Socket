@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:socket_server/l10n/app_localizations.dart';
-import 'package:socket_server/modules/api_lab/api_lab_screen.dart';
-import 'package:socket_server/modules/carparking/ui/carparking_module_screen.dart';
-import 'package:socket_server/modules/payload_studio/payload_studio_screen.dart';
-import 'package:socket_server/modules/protocol_bridge/protocol_bridge_screen.dart';
-import 'package:socket_server/modules/serial_lab/serial_lab_screen.dart';
-import 'package:socket_server/modules/tcp_lab/tcp_lab_screen.dart';
-import 'package:socket_server/modules/websocket_lab/websocket_lab_screen.dart';
+import 'package:testdeck/l10n/app_localizations.dart';
+import 'package:testdeck/modules/api_lab/api_lab_screen.dart';
+import 'package:testdeck/modules/carparking/ui/carparking_module_screen.dart';
+import 'package:testdeck/modules/payload_studio/payload_studio_screen.dart';
+import 'package:testdeck/modules/protocol_bridge/protocol_bridge_screen.dart';
+import 'package:testdeck/modules/serial_lab/serial_lab_screen.dart';
+import 'package:testdeck/modules/tcp_lab/tcp_lab_screen.dart';
+import 'package:testdeck/modules/websocket_lab/websocket_lab_screen.dart';
 
 class TestingModule {
   const TestingModule({

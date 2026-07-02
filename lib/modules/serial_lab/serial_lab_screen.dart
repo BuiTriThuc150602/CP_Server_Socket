@@ -2,10 +2,10 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_libserialport/flutter_libserialport.dart';
-import 'package:socket_server/core/models/socket_console_entry.dart';
-import 'package:socket_server/core/ui/module_workbench.dart';
-import 'package:socket_server/core/utils/payload_codec.dart';
-import 'package:socket_server/modules/serial_lab/services/serial_port_engine.dart';
+import 'package:testdeck/core/models/socket_console_entry.dart';
+import 'package:testdeck/core/ui/module_workbench.dart';
+import 'package:testdeck/core/utils/payload_codec.dart';
+import 'package:testdeck/modules/serial_lab/services/serial_port_engine.dart';
 
 class SerialLabScreen extends StatefulWidget {
   const SerialLabScreen({super.key});

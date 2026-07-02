@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:socket_server/modules/carparking/services/carparking_controller.dart';
-import 'package:socket_server/modules/carparking/ui/widgets/carparking_console_panel.dart';
-import 'package:socket_server/modules/carparking/ui/widgets/carparking_device_summary.dart';
-import 'package:socket_server/modules/carparking/ui/widgets/carparking_scenario_toolbar.dart';
-import 'package:socket_server/modules/carparking/ui/widgets/carparking_server_toolbar.dart';
-import 'package:socket_server/modules/carparking/ui/widgets/carparking_signal_list.dart';
+import 'package:testdeck/modules/carparking/services/carparking_controller.dart';
+import 'package:testdeck/modules/carparking/ui/widgets/carparking_console_panel.dart';
+import 'package:testdeck/modules/carparking/ui/widgets/carparking_device_summary.dart';
+import 'package:testdeck/modules/carparking/ui/widgets/carparking_scenario_toolbar.dart';
+import 'package:testdeck/modules/carparking/ui/widgets/carparking_server_toolbar.dart';
+import 'package:testdeck/modules/carparking/ui/widgets/carparking_signal_list.dart';
 
 class CarParkingModuleScreen extends StatelessWidget {
   const CarParkingModuleScreen({super.key});

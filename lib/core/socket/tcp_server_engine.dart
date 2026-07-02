@@ -2,8 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:socket_server/core/logging/logger_service.dart';
-import 'package:socket_server/core/utils/payload_codec.dart';
+import 'package:testdeck/core/logging/logger_service.dart';
+import 'package:testdeck/core/utils/payload_codec.dart';
 
 enum TcpServerState { stopped, starting, running, stopping, error }
 

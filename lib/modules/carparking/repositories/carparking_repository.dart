@@ -1,6 +1,6 @@
-import 'package:socket_server/core/storage/json_storage_repository.dart';
-import 'package:socket_server/modules/carparking/models/carparking_models.dart';
-import 'package:socket_server/modules/carparking/services/carparking_payload_factory.dart';
+import 'package:testdeck/core/storage/json_storage_repository.dart';
+import 'package:testdeck/modules/carparking/models/carparking_models.dart';
+import 'package:testdeck/modules/carparking/services/carparking_payload_factory.dart';
 
 class CarParkingRepository {
   CarParkingRepository({JsonStorageRepository? storage})

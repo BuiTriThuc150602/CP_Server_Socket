@@ -9,10 +9,11 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
-  String get appTitle => 'Socket Testing Tools';
+  String get appTitle => 'TestDeck';
 
   @override
-  String get chooseModule => 'Choose a desktop testing module to begin.';
+  String get chooseModule =>
+      'Developer Testing Workbench for API, socket, serial, terminal, payload, and simulator workflows.';
 
   @override
   String get system => 'System';

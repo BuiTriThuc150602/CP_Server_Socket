@@ -1,5 +1,5 @@
-import 'package:socket_server/app/app_settings.dart';
-import 'package:socket_server/core/storage/json_storage_repository.dart';
+import 'package:testdeck/app/app_settings.dart';
+import 'package:testdeck/core/storage/json_storage_repository.dart';
 
 class AppSettingsRepository {
   AppSettingsRepository({JsonStorageRepository? storage})

@@ -1,4 +1,4 @@
-import 'package:socket_server/core/storage/app_storage.dart';
+import 'package:testdeck/core/storage/app_storage.dart';
 
 class ModuleConfigRepository {
   ModuleConfigRepository({AppStorage? storage})

@@ -1,7 +1,7 @@
 {
   "@@locale": "vi",
-  "appTitle": "Socket Testing Tools",
-  "chooseModule": "Chọn một module kiểm thử desktop để bắt đầu.",
+  "appTitle": "TestDeck",
+  "chooseModule": "Developer Testing Workbench cho API, socket, serial, terminal, payload và các luồng mô phỏng.",
   "system": "Hệ thống",
   "english": "English",
   "vietnamese": "Tiếng Việt",

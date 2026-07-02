@@ -3,7 +3,7 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
-import 'package:socket_server/core/storage/app_storage.dart';
+import 'package:testdeck/core/storage/app_storage.dart';
 
 class JsonStorageRepository {
   JsonStorageRepository({

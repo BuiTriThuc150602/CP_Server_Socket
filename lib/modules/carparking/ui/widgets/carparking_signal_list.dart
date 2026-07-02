@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:socket_server/modules/carparking/models/carparking_models.dart';
-import 'package:socket_server/modules/carparking/services/carparking_controller.dart';
-import 'package:socket_server/modules/carparking/ui/widgets/carparking_signal_card.dart';
+import 'package:testdeck/modules/carparking/models/carparking_models.dart';
+import 'package:testdeck/modules/carparking/services/carparking_controller.dart';
+import 'package:testdeck/modules/carparking/ui/widgets/carparking_signal_card.dart';
 
 enum SignalDensity { compact, comfortable, advanced }
 
