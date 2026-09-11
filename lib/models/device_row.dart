@@ -13,8 +13,8 @@ class DeviceRow {
     String cardNumber = "",
     String reader = "",
     this.selectedInputName = "",
-  })  : cardController = TextEditingController(text: cardNumber),
-        readerController = TextEditingController(text: reader);
+  }) : cardController = TextEditingController(text: cardNumber),
+       readerController = TextEditingController(text: reader);
 
   Map<String, dynamic> toJson() {
     return {

@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 class SocketServerInfo {
   String serverIp;
   String serverPort;
@@ -17,9 +15,6 @@ class SocketServerInfo {
   }
 
   Map<String, dynamic> toJson() {
-    return {
-      'serverIp': serverIp,
-      'serverPort': serverPort,
-    };
+    return {'serverIp': serverIp, 'serverPort': serverPort};
   }
 }

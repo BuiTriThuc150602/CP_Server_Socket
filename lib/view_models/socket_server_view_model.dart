@@ -83,7 +83,7 @@ class SocketServerViewModel extends ChangeNotifier {
 
   /// ==== Fake send functions ====
   void sendCard(String cardNumber, String reader) {
-    print("📤 Send Card Event: card=$cardNumber, reader=$reader");
+    debugPrint("Send Card Event: card=$cardNumber, reader=$reader");
   }
 
   void sendIoStatus(String inputName) {
@@ -115,6 +115,6 @@ class SocketServerViewModel extends ChangeNotifier {
       }),
     };
 
-    print("📤 Send IO Event: ${jsonEncode(ioPayload)}");
+    debugPrint("Send IO Event: ${jsonEncode(ioPayload)}");
   }
 }

@@ -3,16 +3,16 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:socket_server/models/device_info.dart';
-import 'package:socket_server/models/socket_server_info.dart';
+import 'package:fluxlab/models/device_info.dart';
+import 'package:fluxlab/models/socket_server_info.dart';
 
 class DeviceConfigPage extends StatefulWidget {
   final DeviceInfo? deviceInfo;
   final SocketServerInfo? socketServerInfo;
-  DeviceConfigPage({this.deviceInfo, this.socketServerInfo});
+  const DeviceConfigPage({super.key, this.deviceInfo, this.socketServerInfo});
 
   @override
-  _DeviceConfigPageState createState() => _DeviceConfigPageState();
+  State<DeviceConfigPage> createState() => _DeviceConfigPageState();
 }
 
 class _DeviceConfigPageState extends State<DeviceConfigPage> {
@@ -65,10 +65,17 @@ class _DeviceConfigPageState extends State<DeviceConfigPage> {
               _buildField("BaudRate", baudRateController),
               _buildField("COM Name", comNameController),
               SizedBox(height: 20),
-              Text("Cấu hình Socket Server", style: Theme.of(context).textTheme.titleLarge),
+              Text(
+                "Cấu hình Socket Server",
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
               SizedBox(height: 10),
               _buildField("Server IP", serverIpController, isRequired: true),
-              _buildField("Server Port", serverPortController, isRequired: true),
+              _buildField(
+                "Server Port",
+                serverPortController,
+                isRequired: true,
+              ),
               SizedBox(height: 20),
               ElevatedButton(
                 onPressed: () async {
@@ -81,7 +88,7 @@ class _DeviceConfigPageState extends State<DeviceConfigPage> {
                       manufacturer: manuController.text,
                       modelName: modelController.text,
                       baudRate: baudRateController.text,
-                      comName: comNameController.text
+                      comName: comNameController.text,
                     );
                     await _saveDevice(device);
 
@@ -91,11 +98,14 @@ class _DeviceConfigPageState extends State<DeviceConfigPage> {
                     );
                     await _saveSocketServerInfo(socketServer);
 
-                    Navigator.pop(context, device); // Only returning device for now, will need to adjust if both are returned
+                    if (!context.mounted) {
+                      return;
+                    }
+                    Navigator.pop(context, device);
                   }
                 },
                 child: Text("Lưu"),
-              )
+              ),
             ],
           ),
         ),
@@ -103,7 +113,11 @@ class _DeviceConfigPageState extends State<DeviceConfigPage> {
     );
   }
 
-  Widget _buildField(String label, TextEditingController controller, {bool isRequired = false}) {
+  Widget _buildField(
+    String label,
+    TextEditingController controller, {
+    bool isRequired = false,
+  }) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       child: TextFormField(
@@ -112,7 +126,11 @@ class _DeviceConfigPageState extends State<DeviceConfigPage> {
           labelText: label,
           border: OutlineInputBorder(),
         ),
-        validator: (v) => isRequired && (v == null || v.isEmpty) ? "Không được bỏ trống" : null,
+        validator:
+            (v) =>
+                isRequired && (v == null || v.isEmpty)
+                    ? "Không được bỏ trống"
+                    : null,
       ),
     );
   }
@@ -122,6 +140,7 @@ class _DeviceConfigPageState extends State<DeviceConfigPage> {
     final file = File("${dir.path}/device.json");
     await file.writeAsString(jsonEncode(device.toJson()));
   }
+
   Future<void> _saveSocketServerInfo(SocketServerInfo socketServer) async {
     final dir = await getApplicationDocumentsDirectory();
     final file = File("${dir.path}/socket_server.json");
